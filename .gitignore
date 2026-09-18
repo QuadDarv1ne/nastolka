@@ -50,5 +50,8 @@ test
 prompt
 
 server.log
+# Архивы с исходниками (артефакты сборки, не код)
+*.zip
+*.tar.gz
 # Skills directory
 /skills/

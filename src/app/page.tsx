@@ -138,7 +138,7 @@ interface RoundHistoryEntry {
   multiplier: number    // какой множитель был (1 или 2)
 }
 
-interface State {
+export interface State {
   phase: Phase
   teams: Team[]
   activeTeam: number

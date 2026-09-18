@@ -128,6 +128,28 @@ bun run dev
 Сервер слушает на порту **3003** (переопределяется переменной `MP_PORT`).
 Оставьте его работать в отдельном терминале.
 
+### Автозапуск mini-service
+
+В `dev.sh` / `dev.ps1` уже есть автозапуск mini-service при старте dev-сервера:
+
+```bash
+bash dev.sh          # Linux / macOS / Git Bash: Next.js (3000) + мультиплеер (3003)
+```
+
+```powershell
+.\dev.ps1            # Windows PowerShell: то же самое
+.\dev.ps1 -NoMp      # только Next.js, без мультиплеера
+```
+
+Скрипты сами ставят зависимости mini-service, стартуют его в фоне, проверяют
+порт и корректно останавливают всё при выходе (Ctrl+C). Если mini-service не
+поднялся автоматически, запустите вручную:
+
+```bash
+bash .zscripts/start-multiplayer.sh
+# или из корня: bun run mp
+```
+
 ### Использование мультиплеера
 
 1. На устройстве A: откройте сайт → нажмите 📡 в шапке → «Создать комнату»
@@ -270,6 +292,9 @@ bun run start      # или: npm run start
 │   │   └── ui/            # shadcn/ui компоненты
 │   └── lib/
 │       └── game-data.ts   # Банк слов, методы, утилиты броска
+├── dev.sh / dev.ps1       # Dev-запуск с автостартом мультиплеера
+├── .zscripts/
+│   └── start-multiplayer.sh # Помощник запуска mini-service
 ├── Dockerfile             # Production-сборка (Docker)
 ├── scripts/
 │   └── copy-standalone.mjs # Кроссплатформенное копирование ассетов после build

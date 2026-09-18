@@ -41,6 +41,11 @@ export interface MultiplayerEvents {
 
 const CONNECT_TIMEOUT_MS = 15000  // больше времени на handshake через прокси
 
+/** Опции socket.io: ManagerOptions (path, query, transports...) + SocketOptions (auth...) */
+type IoOptions = Partial<
+  import('socket.io-client').ManagerOptions & import('socket.io-client').SocketOptions
+>
+
 /** Создать комнату. Возвращает клиент с кодом комнаты. */
 export async function createRoom(syncMode: "host" | "sync" = "host"): Promise<MultiplayerClient & { code: string }> {
   const socket = await connect()
@@ -54,10 +59,10 @@ export async function createRoom(syncMode: "host" | "sync" = "host"): Promise<Mu
     }
     const timeout = setTimeout(() => fail(new Error('Сервер не ответил за 15 сек. Проверьте, что мини-сервис запущен на порту 3003.')), CONNECT_TIMEOUT_MS)
     socket.on('connect_error', (err: Error) => fail(new Error(`Ошибка подключения: ${err.message}`)))
-    socket.on('connect', () => {
-      // Подключились — теперь ждём room-created
-      socket.emit('create-room', {})
-    })
+    // connect() уже дожидается подключения, но на случай reconnect — обрабатываем оба варианта
+    const start = () => socket.emit('create-room', {})
+    if (socket.connected) start()
+    else socket.on('connect', start)
     socket.on('room-created', ({ code }: { code: string }) => {
       if (settled) return
       settled = true
@@ -67,7 +72,7 @@ export async function createRoom(syncMode: "host" | "sync" = "host"): Promise<Mu
         ...makeWrapper(socket),
       }
       // Отправляем другим участникам метаданные о себе (роль = host, режим)
-      wrapper.sendMeta({ role: "host", syncMode, clientId: socket.id })
+      wrapper.sendMeta({ role: "host", syncMode, clientId: socket.id ?? '' })
       resolve(wrapper)
     })
   })
@@ -95,7 +100,7 @@ export async function joinRoom(code: string, syncMode: "host" | "sync" = "sync")
       clearTimeout(timeout)
       const client = makeWrapper(socket)
       // Отправляем метаданные (роль = guest, режим)
-      client.sendMeta({ role: "guest", syncMode, clientId: socket.id })
+      client.sendMeta({ role: "guest", syncMode, clientId: socket.id ?? '' })
       resolve(client)
     })
     socket.on('room-error', (err: { message: string }) => {
@@ -108,23 +113,67 @@ async function connect() {
   // Динамический импорт — socket.io-client только в браузере
   const { io } = await import('socket.io-client')
 
-  // Стратегия подключения:
-  // 1. Пробуем через Caddy-прокси с XTransformPort (работает на Amvera и в превью)
-  // 2. Если не получилось — пробуем напрямую к порту 3003 (для локальной разработки)
-  // Используем polling как основной transport — он надёжнее через прокси.
+  // Стратегия подключения (кандидаты пробуются по очереди, пока один не подключится):
+  // 1. localhost        → напрямую http://localhost:3003
+  // 2. превью/прод      → через прокси с XTransformPort (Caddy, Amvera)
+  // 3. тот же хост в LAN (телефон по Wi-Fi, например http://192.168.1.5:3000)
+  //                    → напрямую http://<hostname>:3003
 
-  // Определяем origin: на локалхосте — localhost:3000, в превью — preview-*.space-z.ai
-  const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"
-  const isLocal = origin.includes("localhost") || origin.includes("127.0.0.1")
+  const hostname = typeof window !== "undefined" ? window.location.hostname : "localhost"
+  const isLocal = hostname === "localhost" || hostname === "127.0.0.1"
 
-  // Для локальной разработки — можем ходить напрямую на 3003 (CORS уже *)
-  // Для превью/прод — только через Caddy с XTransformPort
-  const url = isLocal ? "http://localhost:3003" : "/"
-  const opts: import('socket.io-client').SocketOptions = isLocal
-    ? { path: '/', transports: ['polling', 'websocket'], reconnection: false, timeout: 10000, forceNew: true }
-    : { path: '/', transports: ['polling', 'websocket'], reconnection: false, timeout: 10000, forceNew: true, query: { XTransformPort: '3003' } }
+  const baseOpts: IoOptions = {
+    path: '/',
+    transports: ['polling', 'websocket'],
+    reconnection: false,
+    timeout: 7000,
+    forceNew: true,
+  }
 
-  return io(url, opts)
+  const candidates: Array<{ label: string; url: string; opts: IoOptions }> =
+    isLocal
+      ? [{ label: 'localhost:3003', url: 'http://localhost:3003', opts: baseOpts }]
+      : [
+          { label: 'прокси (XTransformPort)', url: '/', opts: { ...baseOpts, query: { XTransformPort: '3003' } } },
+          { label: `напрямую ${hostname}:3003`, url: `http://${hostname}:3003`, opts: baseOpts },
+        ]
+
+  let lastError: Error | null = null
+  for (const c of candidates) {
+    try {
+      return await tryConnect(io, c.url, c.opts)
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err))
+    }
+  }
+  throw new Error(
+    `Не удалось подключиться (пробовали: ${candidates.map((c) => c.label).join(', ')}). ` +
+      'Проверьте, что мини-сервер мультиплеера запущен (порт 3003), и что оба устройства в одной сети.'
+  )
+}
+
+/** Подключиться к одному URL; резолвится после события 'connect' */
+function tryConnect(
+  io: typeof import('socket.io-client')['io'],
+  url: string,
+  opts: import('socket.io-client').SocketOptions
+): Promise<import('socket.io-client').Socket> {
+  return new Promise((resolve, reject) => {
+    const socket = io(url, opts)
+    const timeout = setTimeout(() => {
+      try { socket.disconnect() } catch {}
+      reject(new Error(`Таймаут подключения к ${url}`))
+    }, 8000)
+    socket.on('connect', () => {
+      clearTimeout(timeout)
+      resolve(socket)
+    })
+    socket.on('connect_error', (err: Error) => {
+      clearTimeout(timeout)
+      try { socket.disconnect() } catch {}
+      reject(err)
+    })
+  })
 }
 
 function makeWrapper(socket: import('socket.io-client').Socket): MultiplayerClient {
