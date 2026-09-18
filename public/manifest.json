@@ -1,0 +1,19 @@
+{
+  "name": "«Настолка» — играем в настольную игру",
+  "short_name": "Настолка",
+  "description": "Командная игра на объяснение слов: бросай кубик, объясняй словами, песнями, рисунком или жестами.",
+  "lang": "ru",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fff5fb",
+  "theme_color": "#f472b6",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+# ─────────────────────────────────────────────────────────────
+# Amvera — альтернативная конфигурация через Node.JS Server
+# https://docs.amvera.ru/applications/environments/nodejs-server.html
+# ─────────────────────────────────────────────────────────────
+#
+# ЭТО АЛЬТЕРНАТИВНЫЙ ВАРИАНТ. По умолчанию используйте amvera.yml
+# (Docker-режим). Этот файл полезен, если вы хотите деплоить
+# проект без Docker — как обычное Node.js-приложение.
+#
+# Чтобы использовать этот файл вместо Dockerfile:
+#   1. Удалите (или переименуйте) Dockerfile и amvera.yml
+#   2. Переименуйте этот файл в amvera.yml
+#   3. Убедитесь, что в package.json есть scripts.build и scripts.start
+#   4. В package.json должен быть package-lock.json (npm install)
+#
+# Примечание: этот проект использует Bun как пакетный менеджер в dev,
+# но для Amvera нужен npm. Перед первым деплоем выполните:
+#   npm install --legacy-peer-deps
+#   (создаст package-lock.json, который попадёт в репозиторий)
+
+meta:
+  environment: node
+  toolchain:
+    name: npm
+    version: "18"
+
+build:
+  # Сначала выполнится npm install, потом — npm run build
+  additionalCommands: npm run build
+  artifacts:
+    # Копируем standalone-сервер и статику
+    ".next/standalone": "/"
+    ".next/static": "/.next/static"
+    "public": "/public"
+
+run:
+  # Запускаем standalone-сервер Next.js
+  command: node server.js
+  containerPort: 3000
+  # Постоянное хранилище (если нужно) — монтируется в /data
+  persistenceMount: /data
