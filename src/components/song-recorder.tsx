@@ -31,6 +31,15 @@ export function SongRecorder({ resetKey, lang }: SongRecorderProps) {
 
   const t = (ru: string, en: string) => lang === "ru" ? ru : en
 
+  // Микрофон (getUserMedia) работает только в secure context:
+  // https:// или http://localhost. При открытии по Wi-Fi (http://192.168.x.x)
+  // браузер блокирует доступ — показываем понятное предупреждение заранее.
+  const micUnsupported =
+    typeof window !== "undefined" &&
+    !window.isSecureContext &&
+    window.location.hostname !== "localhost" &&
+    window.location.hostname !== "127.0.0.1"
+
   // Очистка при смене resetKey — через requestAnimationFrame
   useEffect(() => {
     if (!resetKey) return
@@ -176,7 +185,16 @@ export function SongRecorder({ resetKey, lang }: SongRecorderProps) {
         </div>
       )}
 
-      {!isRecording && !audioUrl && (
+      {micUnsupported && (
+        <div className="mb-2 rounded-lg bg-amber-500/10 p-2 text-xs text-amber-600 dark:text-amber-400">
+          {t(
+            "Микрофон недоступен: браузер блокирует его на http-адресах. Откройте сайт на этом устройстве по localhost или через https, либо просто пойте без записи.",
+            "Microphone is unavailable: browsers block it on http addresses. Open the site via localhost or https on this device, or just sing without recording.",
+          )}
+        </div>
+      )}
+
+      {!isRecording && !audioUrl && !micUnsupported && (
         <Button
           size="sm"
           variant="outline"

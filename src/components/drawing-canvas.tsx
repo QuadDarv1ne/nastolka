@@ -37,19 +37,41 @@ export function DrawingCanvas({ resetKey }: DrawingCanvasProps) {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    // Устанавливаем размер canvas с учётом DPR для чётких линий
-    const dpr = window.devicePixelRatio || 1
-    const rect = canvas.getBoundingClientRect()
-    canvas.width = rect.width * dpr
-    canvas.height = rect.height * dpr
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-    ctx.scale(dpr, dpr)
-    ctx.lineCap = "round"
-    ctx.lineJoin = "round"
-    ctx.strokeStyle = color
-    ctx.lineWidth = strokeWidth
-    ctxRef.current = ctx
+    const setup = () => {
+      const ctx = canvas.getContext("2d")
+      if (!ctx) return
+      // Сохраняем текущий рисунок перед ресайзом (поворот экрана, смена размера окна)
+      const prev = document.createElement("canvas")
+      const hadContent = canvas.width > 0 && canvas.height > 0
+      if (hadContent) {
+        prev.width = canvas.width
+        prev.height = canvas.height
+        prev.getContext("2d")?.drawImage(canvas, 0, 0)
+      }
+      // Устанавливаем размер canvas с учётом DPR для чётких линий
+      const dpr = window.devicePixelRatio || 1
+      const rect = canvas.getBoundingClientRect()
+      canvas.width = Math.max(1, Math.round(rect.width * dpr))
+      canvas.height = Math.max(1, Math.round(rect.height * dpr))
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.lineCap = "round"
+      ctx.lineJoin = "round"
+      ctx.strokeStyle = color
+      ctx.lineWidth = strokeWidth
+      // Восстанавливаем рисунок в новый размер
+      if (hadContent && prev.width > 0) {
+        ctx.save()
+        ctx.setTransform(1, 0, 0, 1, 0, 0)
+        ctx.drawImage(prev, 0, 0, canvas.width, canvas.height)
+        ctx.restore()
+      }
+      ctxRef.current = ctx
+    }
+    setup()
+    // Поворот телефона / планшета, смена размера окна — перенастраиваем холст
+    const observer = new ResizeObserver(() => setup())
+    observer.observe(canvas)
+    return () => observer.disconnect()
   }, [])
 
   // Очистка при смене resetKey

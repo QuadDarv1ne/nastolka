@@ -636,8 +636,8 @@ function HeaderBar({
   }
 
   return (
-    <header className="w-full max-w-5xl px-4 pt-6">
-      <div className="flex items-center justify-between gap-2 sm:gap-4">
+    <header className="safe-top w-full max-w-5xl px-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4">
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-rose-500 via-amber-400 to-emerald-500 text-white shadow-lg sm:h-12 sm:w-12">
             <Dices className="h-5 w-5 sm:h-7 sm:w-7" strokeWidth={2.4} />
@@ -1552,10 +1552,10 @@ export default function Home() {
 
   return (
     <I18nContext.Provider value={i18nValue}>
-    <div className="nastolka-bg relative min-h-screen w-full">
+    <div className="nastolka-bg relative min-h-dvh w-full">
       <FloatingBubbles />
 
-      <div className="relative z-10 flex min-h-screen flex-col items-center">
+      <div className="relative z-10 flex min-h-dvh flex-col items-center">
         <HeaderBar
           onShowRules={() => setShowRules(true)}
           onShowHistory={() => setShowHistory(true)}
@@ -2021,14 +2021,14 @@ export default function Home() {
                       transition={{ type: "spring", stiffness: 200, damping: 14, delay: 0.1 }}
                       className="my-2"
                     >
-                      <span className={`text-7xl font-black tabular-nums ${
+                      <span className={`text-5xl font-black tabular-nums sm:text-7xl ${
                         state.lastRoundPoints >= 10
                           ? "bg-gradient-to-br from-amber-400 via-orange-500 to-pink-600 bg-clip-text text-transparent"
                           : "text-emerald-500"
                       }`}>
                         +{state.lastRoundPoints}
                       </span>
-                      <span className="ml-2 text-2xl font-bold text-muted-foreground">
+                      <span className="ml-2 text-xl font-bold text-muted-foreground sm:text-2xl">
                         {pluralPoints(state.lastRoundPoints, lang)}
                       </span>
                     </motion.div>
@@ -2175,7 +2175,7 @@ export default function Home() {
           </AnimatePresence>
         </main>
 
-        <footer className="w-full max-w-5xl px-4 pb-6 pt-2 text-center text-xs text-muted-foreground">
+        <footer className="safe-bottom w-full max-w-5xl px-4 pt-2 text-center text-xs text-muted-foreground">
           {t(lang, "footerText")}
         </footer>
       </div>

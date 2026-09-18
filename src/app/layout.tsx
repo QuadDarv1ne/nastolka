@@ -38,6 +38,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  // cover — для PWA на устройствах с чёлкой/вырезом (safe-area учитывается в CSS)
+  viewportFit: "cover",
 }
 
 export default function RootLayout({

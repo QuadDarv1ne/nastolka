@@ -116,9 +116,27 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    /* Запрещаем pull-to-refresh и overscroll-глоу — мешают рисовать на телефоне */
+    overscroll-behavior: none;
+  }
   body {
     @apply bg-background text-foreground;
+    /* Без синего хайлайта при тапах на iOS/Android */
+    -webkit-tap-highlight-color: transparent;
   }
+  /* Тапы без 300ms-задержки на мобильных */
+  button, [role="button"] {
+    touch-action: manipulation;
+  }
+}
+
+/* Safe-area для устройств с чёлкой/вырезом (iPhone, современные Android) */
+.safe-top {
+  padding-top: max(1.5rem, env(safe-area-inset-top));
+}
+.safe-bottom {
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
 }
 
 /* Праздничный фон в стиле шоу «Настолка» */
