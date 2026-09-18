@@ -28,8 +28,8 @@ function Find-Bun {
 }
 
 try {
+  $mpPort = if ($env:MP_PORT) { $env:MP_PORT } else { "3003" }
   if (-not $NoMp) {
-    $mpPort = if ($env:MP_PORT) { $env:MP_PORT } else { "3003" }
     Write-Host "[dev] запуск mini-service мультиплеера (порт $mpPort)..." -ForegroundColor Cyan
     $mpDir = Join-Path $PSScriptRoot "mini-services\nastolka-multiplayer"
     if (-not (Test-Path (Join-Path $mpDir "node_modules"))) {
@@ -59,6 +59,23 @@ try {
   } else {
     Write-Host "[dev] мультиплеер отключён (-NoMp)" -ForegroundColor Yellow
   }
+
+  # Показываем адреса для игры с других устройств в той же Wi-Fi сети
+  Write-Host ""
+  Write-Host "─────────────────────────────────────────────────"
+  Write-Host "  Игра на этом устройстве:  http://localhost:3000"
+  Write-Host "  Игра с телефона/планшета по Wi-Fi:"
+  $lanIps = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+    Where-Object { $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" -and $_.IPAddress -notlike "172.*" } |
+    Select-Object -ExpandProperty IPAddress -Unique
+  if ($lanIps) {
+    foreach ($ip in $lanIps) { Write-Host "    http://${ip}:3000" }
+  } else {
+    Write-Host "    (узнайте IP компьютера: ipconfig → IPv4)"
+  }
+  Write-Host "  (мультиплеер: порт $mpPort, не блокируйте его фаерволом)"
+  Write-Host "─────────────────────────────────────────────────"
+  Write-Host ""
 
   Write-Host "[dev] запуск Next.js на порту 3000..." -ForegroundColor Cyan
   $bunExe = Find-Bun

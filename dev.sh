@@ -36,6 +36,19 @@ else
   echo "[dev] multiplayer disabled (--no-mp)"
 fi
 
+# Показываем адреса для игры с других устройств в той же Wi-Fi сети
+echo ""
+echo "─────────────────────────────────────────────────"
+echo "  Игра на этом устройстве:  http://localhost:3000"
+echo "  Игра с телефона/планшета по Wi-Fi:"
+IP_ADDRS=$(ipconfig getifaddr en0 2>/dev/null || hostname -I 2>/dev/null || ip -4 addr show 2>/dev/null | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' || true)
+for ip in $IP_ADDRS; do
+  echo "    http://$ip:3000"
+done
+echo "  (мультиплеер: порт ${MP_PORT:-3003}, не блокируйте его фаерволом)"
+echo "─────────────────────────────────────────────────"
+echo ""
+
 echo "[dev] starting Next.js on port 3000..."
 if command -v bun >/dev/null 2>&1; then
   bun run dev

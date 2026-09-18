@@ -3,7 +3,7 @@
   "version": "0.2.1",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000 2>&1 | tee dev.log",
+    "dev": "next dev -H 0.0.0.0 -p 3000 2>&1 | tee dev.log",
     "build": "next build && node scripts/copy-standalone.mjs",
     "start": "node .next/standalone/server.js",
     "start:bun": "bun .next/standalone/server.js",
