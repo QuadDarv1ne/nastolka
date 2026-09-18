@@ -13,16 +13,32 @@
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 
-const httpServer = createServer()
+// Путь socket.io — /mp, а не корень. Это позволяет Next.js проксировать
+// мультиплеер через rewrite /mp/* → :3003 (см. next.config.ts), чтобы у сайта
+// и WebSocket был один origin. Иначе браузер блокирует http-сокет на
+// https-странице (mixed content), а на превью-доменах порт 3003 вообще закрыт.
+const WS_PATH = process.env.MP_PATH || '/mp'
+
+// roomCode → Set<socketId>
+const rooms = new Map<string, Set<string>>()
+
+const httpServer = createServer((req, res) => {
+  // Health-check: `curl http://localhost:3003/health`
+  if (req.url === '/health') {
+    res.writeHead(200, { 'content-type': 'application/json' })
+    res.end(JSON.stringify({ status: 'ok', rooms: rooms.size, path: WS_PATH }))
+    return
+  }
+  res.writeHead(404)
+  res.end()
+})
+
 const io = new Server(httpServer, {
-  path: '/',
+  path: WS_PATH,
   cors: { origin: '*', methods: ['GET', 'POST'] },
   pingTimeout: 60000,
   pingInterval: 25000,
 })
-
-// roomCode → Set<socketId>
-const rooms = new Map<string, Set<string>>()
 
 // socketId → roomCode (для быстрого выхода)
 const socketToRoom = new Map<string, string>()
@@ -129,7 +145,7 @@ io.on('connection', (socket) => {
 // Порт можно переопределить переменной окружения MP_PORT (по умолчанию 3003)
 const PORT = Number(process.env.MP_PORT) || 3003
 httpServer.listen(PORT, () => {
-  console.log(`Nastolka WebSocket server on port ${PORT}`)
+  console.log(`Nastolka WebSocket server on port ${PORT} (path ${WS_PATH})`)
 })
 
 process.on('SIGTERM', () => {

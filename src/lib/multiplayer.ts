@@ -109,46 +109,114 @@ export async function joinRoom(code: string, syncMode: "host" | "sync" = "sync")
   })
 }
 
-async function connect() {
-  // Динамический импорт — socket.io-client только в браузере
-  const { io } = await import('socket.io-client')
+/** Ключ localStorage с ручным адресом WS-сервера (для нестандартных сетей) */
+const MP_URL_STORAGE_KEY = "nastolka-mp-url-v1"
 
-  // Стратегия подключения (кандидаты пробуются по очереди, пока один не подключится):
-  // 1. localhost        → напрямую http://localhost:3003
-  // 2. превью/прод      → через прокси с XTransformPort (Caddy, Amvera)
-  // 3. тот же хост в LAN (телефон по Wi-Fi, например http://192.168.1.5:3000)
-  //                    → напрямую http://<hostname>:3003
+/** Ручной адрес сервера мультиплеера, если пользователь задал его в настройках */
+export function getManualMpUrl(): string {
+  if (typeof window === "undefined") return ""
+  try {
+    return (localStorage.getItem(MP_URL_STORAGE_KEY) || "").trim()
+  } catch {
+    return ""
+  }
+}
 
+/** Сохранить/очистить ручной адрес сервера мультиплеера */
+export function setManualMpUrl(url: string) {
+  if (typeof window === "undefined") return
+  try {
+    const v = url.trim()
+    if (v) localStorage.setItem(MP_URL_STORAGE_KEY, v)
+    else localStorage.removeItem(MP_URL_STORAGE_KEY)
+  } catch {
+    // ignore
+  }
+}
+
+/** Путь socket.io — должен совпадать с MP_PATH в mini-services/nastolka-multiplayer */
+const WS_PATH = "/mp"
+
+/** Кандидат на подключение: человекочитаемая подпись + url + опции сокета */
+interface Candidate {
+  label: string
+  url: string
+  opts: IoOptions
+}
+
+/** Собрать список адресов, которые стоит попробовать, в порядке приоритета. */
+function buildCandidates(): Candidate[] {
   const hostname = typeof window !== "undefined" ? window.location.hostname : "localhost"
   const isLocal = hostname === "localhost" || hostname === "127.0.0.1"
 
   const baseOpts: IoOptions = {
-    path: '/',
-    transports: ['polling', 'websocket'],
+    path: WS_PATH,
+    transports: ["polling", "websocket"],
     reconnection: false,
     timeout: 7000,
     forceNew: true,
   }
 
-  const candidates: Array<{ label: string; url: string; opts: IoOptions }> =
-    isLocal
-      ? [{ label: 'localhost:3003', url: 'http://localhost:3003', opts: baseOpts }]
-      : [
-          { label: 'прокси (XTransformPort)', url: '/', opts: { ...baseOpts, query: { XTransformPort: '3003' } } },
-          { label: `напрямую ${hostname}:3003`, url: `http://${hostname}:3003`, opts: baseOpts },
-        ]
+  const list: Candidate[] = []
 
-  let lastError: Error | null = null
+  // 0. Ручной адрес из настроек — всегда самый приоритетный
+  const manual = getManualMpUrl()
+  if (manual) list.push({ label: `вручную (${manual})`, url: manual, opts: baseOpts })
+
+  // 1. Тот же origin, что и у сайта: Next проксирует /mp/* на мини-сервис
+  //    (см. rewrites в next.config.ts). Работает и на localhost, и по LAN-IP,
+  //    и по HTTPS-домену — порт 3003 снаружи вообще не нужен.
+  list.push({ label: "через сайт (/mp)", url: typeof window !== "undefined" ? window.location.origin : "http://localhost:3000", opts: baseOpts })
+
+  // 2. Напрямую на порт 3003 того же хоста — если прокси/rewrite недоступны
+  //    (например, прод-сборка без rewrites или standalone-сервер).
+  if (isLocal) {
+    list.push({ label: "localhost:3003", url: "http://localhost:3003", opts: baseOpts })
+  } else {
+    list.push({
+      label: `${hostname}:3003 напрямую`,
+      url: `http://${hostname}:3003`,
+      opts: baseOpts,
+    })
+    // 3. Провайдеры вида Amvera/Caddy, где порт выбирается query-параметром
+    list.push({
+      label: "прокси (XTransformPort)",
+      url: "/",
+      opts: { ...baseOpts, query: { XTransformPort: "3003" } },
+    })
+  }
+
+  return list
+}
+
+async function connect() {
+  // Динамический импорт — socket.io-client только в браузере
+  const { io } = await import('socket.io-client')
+
+  const candidates = buildCandidates()
+  const errors: string[] = []
+
   for (const c of candidates) {
     try {
       return await tryConnect(io, c.url, c.opts)
     } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err))
+      const msg = err instanceof Error ? err.message : String(err)
+      errors.push(`${c.label}: ${msg}`)
+      if (typeof console !== "undefined") console.warn("[multiplayer] кандидат не подошёл:", c.label, msg)
     }
   }
+
+  const isHttps = typeof window !== "undefined" && window.location.protocol === "https:"
+  const hints: string[] = []
+  if (isHttps) {
+    hints.push("Сайт открыт по HTTPS — браузер не пустит незащищённое ws:// соединение. Запустите мини-сервис и заходите по http://IP:3000, либо укажите адрес сервера вручную в окне мультиплеера.")
+  }
+  hints.push("Проверьте, что мини-сервис запущен: bun run mp (порт 3003).")
+  hints.push("Оба устройства должны быть в одной Wi-Fi сети.")
+
   throw new Error(
-    `Не удалось подключиться (пробовали: ${candidates.map((c) => c.label).join(', ')}). ` +
-      'Проверьте, что мини-сервер мультиплеера запущен (порт 3003), и что оба устройства в одной сети.'
+    `Не удалось подключиться. Пробовали: ${candidates.map((c) => c.label).join("; ")}. ` +
+      errors.join(" | ") + " → " + hints.join(" ")
   )
 }
 

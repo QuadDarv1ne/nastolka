@@ -1,9 +1,15 @@
 // E2E-тест мультиплеера: создаём комнату клиентом A, подключаемся клиентом B,
 // синхронизируем состояние. Запуск: node scripts/test-multiplayer.mjs
+//
+// Переменные: MP_URL (по умолчанию http://localhost:3003),
+//            MP_PATH (по умолчанию /mp, должен совпадать с мини-сервисом)
 import { io } from "socket.io-client";
 
-const URL = "http://localhost:3003";
-const OPTS = { path: "/", transports: ["polling", "websocket"], reconnection: false, timeout: 8000, forceNew: true };
+const URL = process.env.MP_URL || "http://localhost:3003";
+const PATH = process.env.MP_PATH || "/mp";
+const OPTS = { path: PATH, transports: ["polling", "websocket"], reconnection: false, timeout: 8000, forceNew: true };
+
+console.log(`[test] target ${URL}${PATH}`);
 
 const A = io(URL, OPTS);
 const B = io(URL, OPTS);

@@ -412,6 +412,18 @@ export const STRINGS = {
   chipDouble: { ru: "удвоить", en: "double" },
   chipTime: { ru: "время", en: "time" },
   chipLeft: { ru: "осталось", en: "left" },
+
+  // Ручной адрес сервера мультиплеера
+  mpAdvanced: { ru: "Дополнительно", en: "Advanced" },
+  mpServerUrlLabel: { ru: "Адрес сервера мультиплеера", en: "Multiplayer server URL" },
+  mpServerUrlPlaceholder: { ru: "http://192.168.1.5:3003", en: "http://192.168.1.5:3003" },
+  mpServerUrlHint: {
+    ru: "Обычно не нужно. Заполните, если устройства в разных сетях или сервер на другом хосте. Пусто = искать автоматически.",
+    en: "Usually not needed. Fill it in if devices are on different networks or the server is on another host. Empty = auto-detect.",
+  },
+  mpServerUrlSaved: { ru: "Сохранено", en: "Saved" },
+  mpServerUrlClear: { ru: "Сбросить", en: "Reset" },
+  mpSave: { ru: "Сохранить", en: "Save" },
 } as const
 
 export type StringKey = keyof typeof STRINGS

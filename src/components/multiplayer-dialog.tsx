@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Radio, Wifi, X, Copy, Check, Users, Crown, RefreshCw } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Radio, Wifi, X, Copy, Check, Users, Crown, RefreshCw, Settings2 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,13 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { createRoom, joinRoom, type MultiplayerClient } from "@/lib/multiplayer"
+import {
+  createRoom,
+  joinRoom,
+  getManualMpUrl,
+  setManualMpUrl,
+  type MultiplayerClient,
+} from "@/lib/multiplayer"
 import { t, type Lang } from "@/lib/i18n"
 
 interface Props {
@@ -41,6 +47,20 @@ export function MultiplayerDialog({
   const [connecting, setConnecting] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const [syncMode, setSyncMode] = useState<"host" | "sync">("host")
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [mpUrl, setMpUrl] = useState("")
+  const [mpUrlSaved, setMpUrlSaved] = useState(false)
+
+  // Подтягиваем сохранённый адрес сервера (только на клиенте)
+  useEffect(() => {
+    setMpUrl(getManualMpUrl())
+  }, [open])
+
+  const handleSaveMpUrl = () => {
+    setManualMpUrl(mpUrl)
+    setMpUrlSaved(true)
+    setTimeout(() => setMpUrlSaved(false), 1500)
+  }
 
   const handleCreate = async () => {
     setConnecting(true)
@@ -213,6 +233,45 @@ export function MultiplayerDialog({
             <p className="text-xs text-muted-foreground">
               {t(lang, "mpInfo")}
             </p>
+
+            {/* Ручной адрес сервера — для нестандартных сетей */}
+            <div className="rounded-2xl border border-dashed p-3">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced((v) => !v)}
+                className="flex w-full items-center gap-2 text-sm font-semibold text-muted-foreground"
+              >
+                <Settings2 className="h-4 w-4" />
+                {t(lang, "mpAdvanced")}
+                {getManualMpUrl() && (
+                  <span className="ml-auto rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-600">
+                    {getManualMpUrl()}
+                  </span>
+                )}
+              </button>
+              {showAdvanced && (
+                <div className="mt-3 space-y-2">
+                  <Label className="text-xs">{t(lang, "mpServerUrlLabel")}</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={mpUrl}
+                      onChange={(e) => setMpUrl(e.target.value)}
+                      placeholder={t(lang, "mpServerUrlPlaceholder")}
+                      className="text-sm"
+                      inputMode="url"
+                      autoCapitalize="off"
+                      autoCorrect="off"
+                    />
+                    <Button size="sm" variant="secondary" onClick={handleSaveMpUrl}>
+                      {mpUrlSaved ? <Check className="h-4 w-4" /> : t(lang, "mpSave")}
+                    </Button>
+                  </div>
+                  <p className="text-[11px] leading-snug text-muted-foreground">
+                    {t(lang, "mpServerUrlHint")}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
