@@ -126,7 +126,8 @@ io.on('connection', (socket) => {
   })
 })
 
-const PORT = 3003
+// Порт можно переопределить переменной окружения MP_PORT (по умолчанию 3003)
+const PORT = Number(process.env.MP_PORT) || 3003
 httpServer.listen(PORT, () => {
   console.log(`Nastolka WebSocket server on port ${PORT}`)
 })

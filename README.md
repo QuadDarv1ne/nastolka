@@ -118,13 +118,16 @@
 в `mini-services/nastolka-multiplayer/`. Чтобы запустить:
 
 ```bash
+bun run mp          # из корня проекта (быстрее всего)
+# или вручную:
 cd mini-services/nastolka-multiplayer
-bun install      # или: npm install
-bun run dev      # или: npm run dev
+bun install         # первый раз
+bun run dev
 # → "Nastolka WebSocket server on port 3003"
 ```
 
-Сервер слушает на порту **3003**. Оставьте его работать в отдельном терминале.
+Сервер слушает на порту **3003** (переопределяется переменной `MP_PORT`).
+Оставьте его работать в отдельном терминале.
 
 ### Использование мультиплеера
 
@@ -170,6 +173,7 @@ bun run dev      # или: npm run dev
 ## 🚀 Локальный запуск
 
 ```bash
+```bash
 # Установить зависимости
 bun install        # или: npm install --legacy-peer-deps
 
@@ -178,8 +182,11 @@ bun run dev        # или: npm run dev
 # Откройте http://localhost:3000
 
 # Production-сборка
-bun run build
+bun run build      # кроссплатформенно (Windows/Linux/macOS)
 bun run start      # или: npm run start
+```
+
+Проверка живости сервера: `GET /api/health` → `{"status":"ok",...}`.
 ```
 
 ---
@@ -263,6 +270,8 @@ bun run start      # или: npm run start
 │   └── lib/
 │       └── game-data.ts   # Банк слов, методы, утилиты броска
 ├── Dockerfile             # Production-сборка (Docker)
+├── scripts/
+│   └── copy-standalone.mjs # Кроссплатформенное копирование ассетов после build
 ├── amvera.yml             # Конфиг Amvera (Docker-режим)
 ├── amvera.nodejs.yml      # Альтернативная конфиг (Node.js-режим)
 ├── .dockerignore
