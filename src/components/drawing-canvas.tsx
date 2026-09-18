@@ -6,7 +6,7 @@ import { Eraser, Trash2, Brush } from "lucide-react"
 /**
  * Простой холст для рисования пальцем или мышью.
  * Без сторонних библиотек — только canvas + touch/mouse events.
- * Подходит для способа «Рисунком» в «Настолке».
+ * Подходит для способа Рисунком в Настолке.
  */
 
 interface DrawingCanvasProps {

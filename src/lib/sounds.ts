@@ -85,7 +85,7 @@ export function playDiceRoll(durationMs = 1400) {
       startAt: t,
     })
   }
-  // Финальный «тук» когда кубик остановился
+  // Финальный тук когда кубик остановился
   playTone(ctx, {
     freq: 90,
     duration: 0.18,
@@ -155,7 +155,7 @@ export function playWin() {
   playTone(ctx, { freq: 1568, duration: 0.6, type: "triangle", volume: 0.18, startAt: 0.96 })
 }
 
-/** Замена слова — лёгкий «свист» */
+/** Замена слова — лёгкий свист */
 export function playSwap() {
   const ctx = getCtx()
   if (!ctx) return

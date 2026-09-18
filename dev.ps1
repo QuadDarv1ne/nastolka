@@ -1,4 +1,4 @@
-﻿# dev.ps1 — автозапуск dev-сервера «Настолки» вместе с mini-service мультиплеера (Windows).
+﻿# dev.ps1 — автозапуск dev-сервера Настолки вместе с mini-service мультиплеера (Windows).
 #
 #   .\dev.ps1          # Next.js (3000) + WebSocket-мультиплеер (3003)
 #   .\dev.ps1 -NoMp    # только Next.js

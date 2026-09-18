@@ -98,8 +98,8 @@ type Phase =
   | "setup"      // настройка команд и стартовой цели
   | "ready"      // начало хода — ждём, когда бросим кубик
   | "rolling"    // кубик крутится
-  | "method"     // кубик выпал, показываем способ — выбираем «открыть слово» или (если выпал Choice) — выбрать способ
-  | "task"       // слово спрятано, ждём «открыть»
+  | "method"     // кубик выпал, показываем способ — выбираем открыть слово или (если выпал Choice) — выбрать способ
+  | "task"       // слово спрятано, ждём открыть
   | "playing"    // слово открыто, идёт таймер
   | "round_end"  // раунд закончился — показываем результат
   | "game_over"  // игра окончена — победитель
@@ -114,12 +114,12 @@ interface Team {
   chips: TeamChips
 }
 
-/** Фишки команды: 2× x2, 1× +10 сек, 1× +5 сек, опционально 1× «Кража хода» */
+/** Фишки команды: 2× x2, 1× +10 сек, 1× +5 сек, опционально 1× Кража хода */
 interface TeamChips {
   x2: number
   plus10: number
   plus5: number
-  stealTurn: number    // 1 — если команде случайно выпала «Кража хода», иначе 0
+  stealTurn: number    // 1 — если команде случайно выпала Кража хода, иначе 0
 }
 
 function initialChips(): TeamChips {
@@ -162,7 +162,7 @@ export interface State {
   enabledCategories: WordCategory[]   // выбранные категории на setup (пусто = все)
   enabledDifficulties: Difficulty[]   // выбранные сложности на setup (пусто = все)
   customWords: string[]                // пользовательские слова (одна строка = одно слово)
-  stealTeam: number                    // номер команды, у которой есть фишка «Кража хода» (-1 = нет)
+  stealTeam: number                    // номер команды, у которой есть фишка Кража хода (-1 = нет)
   stealJustUsed: boolean               // флажок — была ли только что использована кража (для UI)
 }
 
@@ -226,7 +226,7 @@ function makeReducer() {
   return function reducer(state: State, action: Action): State {
     switch (action.type) {
       case "START_GAME": {
-        // Назначаем фишку «Кража хода» случайной команде
+        // Назначаем фишку Кража хода случайной команде
         const teamsWithSteal = action.teams.map((t, i) => ({
           ...t,
           chips: { ...initialChips(), stealTurn: i === action.stealTeam ? 1 : 0 },
@@ -330,7 +330,7 @@ function makeReducer() {
         if (state.phase !== "round_end") return state
         const team = state.activeTeam
         if (state.teams[team]?.chips.stealTurn <= 0) return state
-        // «Крадём» ход: остаёмся на той же активной команде и сразу переходим в ready
+        // Крадём ход: остаёмся на той же активной команде и сразу переходим в ready
         return {
           ...state,
           phase: "ready",
@@ -521,7 +521,7 @@ function pushHistory(state: State, result: "scored" | "skipped", points = 0, mul
   return [...state.history, entry]
 }
 
-/** Правильное склонение слова «очко» по числу и языку */
+/** Правильное склонение слова очко по числу и языку */
 function pluralPoints(n: number, lang: Lang): string {
   if (lang === "en") return n === 1 ? "point" : "points"
   if (n === 1) return "очко"
@@ -770,7 +770,7 @@ function MethodBadge({ method, large = false }: { method: Method; large?: boolea
   )
 }
 
-/** Бейдж «За ответ: X очков» — показывает сумму очков метода и сложности */
+/** Бейдж За ответ: X очков — показывает сумму очков метода и сложности */
 function PointsBadge({ state }: { state: State }) {
   const { t, lang } = useI18n()
   const method = getMethodForRound(state)
@@ -1313,8 +1313,8 @@ export default function Home() {
       // Слушаем обновления состояния от других участников
       client.on('state-update', (payload) => {
         if (!payload?.state) return
-        // В режиме «хост» гости получают состояние от хоста.
-        // В режиме «sync» — любой участник может отправлять.
+        // В режиме хост гости получают состояние от хоста.
+        // В режиме sync — любой участник может отправлять.
         isApplyingRemoteRef.current = true
         dispatch({ type: "HYDRATE", state: payload.state })
         // Сбрасываем флаг в следующем тике
@@ -1342,13 +1342,13 @@ export default function Home() {
     if (isApplyingRemoteRef.current) return  // не отправляем то, что только что получили
     if (!mpClientRef.current) return
     if (state.phase === "setup") return  // не синхронизируем setup
-    // В режиме «host»: только хост отправляет состояние (гости только слушают)
-    // В режиме «sync»: любой отправляет
+    // В режиме host: только хост отправляет состояние (гости только слушают)
+    // В режиме sync: любой отправляет
     if (mpSyncModeRef.current === "host" && mpRoleRef.current !== "host") return
     mpClientRef.current.sendState(state)
   }, [state, mpStatus, hydrated])
 
-  // ─── Мультиплеер: в режиме «host» гости не могут действовать (UI блокируется) ───
+  // ─── Мультиплеер: в режиме host гости не могут действовать (UI блокируется) ───
   const isMpGuestLocked =
     mpStatus === "connected" &&
     mpSyncModeRef.current === "host" &&
@@ -1485,7 +1485,7 @@ export default function Home() {
     if (state.phase === "round_end" && state.lastRoundResult && state.lastRoundResult !== lastResultRef.current) {
       lastResultRef.current = state.lastRoundResult
       if (state.lastRoundResult === "scored") {
-        // За большие очки (≥10) — особый «богатый» звук
+        // За большие очки (≥10) — особый богатый звук
         if (state.lastRoundPoints >= 10) playBigScore()
         else playCorrect()
       } else {
@@ -1567,7 +1567,7 @@ export default function Home() {
           onToggleLang={toggleLang}
         />
 
-        {/* Карточка-заметка о «Краже хода» — показывается только во время игры */}
+        {/* Карточка-заметка о Краже хода — показывается только во время игры */}
         <AnimatePresence>
           {state.phase !== "setup" && state.stealTeam >= 0 && state.stealTeam < state.teams.length && (
             <motion.div
@@ -1614,7 +1614,7 @@ export default function Home() {
                   onStart={(teams, t, r, cats, diffs, customWords) => {
                     const freshPicker = new WordPicker(customWords, cats, diffs)
                     pickerRef.current = freshPicker
-                    // Случайная команда получает фишку «Кража хода»
+                    // Случайная команда получает фишку Кража хода
                     const stealTeam = Math.floor(Math.random() * teams.length)
                     dispatch({
                       type: "START_GAME",
@@ -1743,7 +1743,7 @@ export default function Home() {
                       </div>
                     )}
 
-                    {/* Если выпал «Выбор» — даём выбрать способ */}
+                    {/* Если выпал Выбор — даём выбрать способ */}
                     {state.phase === "method" &&
                       state.currentMethod?.id === "choice" &&
                       state.chosenMethodForChoice === null && (
@@ -1767,7 +1767,7 @@ export default function Home() {
                         </div>
                       )}
 
-                    {/* Если выпал «Ещё раз» — кнопка повторного броска */}
+                    {/* Если выпал Ещё раз — кнопка повторного броска */}
                     {state.phase === "method" && state.currentMethod?.id === "reroll" && (
                       <Button size="lg" onClick={handleRoll} className="font-bold">
                         <Dices className="mr-2 h-5 w-5" />
@@ -1910,14 +1910,14 @@ export default function Home() {
                         {state.currentWord.word}
                       </motion.div>
                       <div className="text-sm text-muted-foreground">
-                        {t(lang, "explainByMethodPrefix")} «{(() => {
+                        {t(lang, "explainByMethodPrefix")} {(() => {
                           const m = getMethodForRound(state)!
                           const labelKey: Record<MethodId, StringKey> = {
                             words: "methodWords", songs: "methodSongs", drawings: "methodDrawings",
                             gestures: "methodGestures", choice: "methodChoice", reroll: "methodReroll",
                           }
                           return t(lang, labelKey[m.id])
-                        })()}»
+                        })()}
                       </div>
                       {/* Сколько очков за раунд */}
                       <div className="mt-3 flex items-center justify-center gap-2">
@@ -1931,14 +1931,14 @@ export default function Home() {
                     </div>
                   )}
 
-                  {/* Холст для способа «Рисунком» */}
+                  {/* Холст для способа Рисунком */}
                   {!state.paused && getMethodForRound(state)?.id === "drawings" && (
                     <div className="mt-4">
                       <DrawingCanvas resetKey={state.currentWord?.word} />
                     </div>
                   )}
 
-                  {/* Запись песни для способа «Песнями» */}
+                  {/* Запись песни для способа Песнями */}
                   {!state.paused && getMethodForRound(state)?.id === "songs" && (
                     <SongRecorder resetKey={state.currentWord?.word} lang={lang} />
                   )}
@@ -2081,7 +2081,7 @@ export default function Home() {
                     <ChevronRight className="mr-2 h-5 w-5" />
                     {t(lang, "passTurn")}
                   </Button>
-                  {/* Кнопка «Кража хода» — только если у текущей команды есть фишка */}
+                  {/* Кнопка Кража хода — только если у текущей команды есть фишка */}
                   {state.teams[state.activeTeam]?.chips.stealTurn > 0 && (
                     <Button
                       size="lg"

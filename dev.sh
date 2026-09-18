@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# dev.sh — автозапуск dev-сервера «Настолки» вместе с mini-service мультиплеера.
+# dev.sh — автозапуск dev-сервера Настолки вместе с mini-service мультиплеера.
 #
 #   bash dev.sh          # Next.js (3000) + WebSocket-мультиплеер (3003)
 #   bash dev.sh --no-mp  # только Next.js

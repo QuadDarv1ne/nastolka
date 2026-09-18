@@ -1,4 +1,4 @@
-// Игровые данные для «Настолки»
+// Игровые данные для Настолки
 
 export type MethodId = "words" | "songs" | "drawings" | "gestures" | "choice" | "reroll"
 
@@ -123,7 +123,7 @@ export const DIFFICULTY_POINTS: Record<Difficulty, number> = {
 
 /**
  * Вычислить очки за раунд: сумма очков метода и сложности.
- * Для «Выбор» используется выбранный метод, для остальных — сам метод.
+ * Для Выбор используется выбранный метод, для остальных — сам метод.
  */
 export function getRoundPoints(
   method: Method | null,
@@ -467,7 +467,7 @@ export class WordPicker {
     return entry
   }
 
-  /** Заменить текущее слово (когда игрок жмёт «Заменить») */
+  /** Заменить текущее слово (когда игрок жмёт Заменить) */
   swap(currentWord: string): WordEntry {
     const all = [...this.custom, ...this.builtIn]
     let pool = all.filter((w) => !this.recent.includes(w.word) && w.word !== currentWord)

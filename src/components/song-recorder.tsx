@@ -5,7 +5,7 @@ import { Mic, Square, Play, Pause, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 /**
- * Компонент записи песни для способа «Песнями».
+ * Компонент записи песни для способа Песнями.
  * Использует MediaRecorder API для записи аудио с микрофона.
  * После записи можно прослушать и удалить.
  * Автоочищается при смене слова.

@@ -1,6 +1,6 @@
 "use client"
 
-// Клиент для подключения к multiplayer-серверу «Настолки».
+// Клиент для подключения к multiplayer-серверу Настолки.
 // Использует socket.io-client (динамический импорт, чтобы не падать на SSR).
 //
 // ВАЖНО: transport — polling + websocket. Polling идёт через обычный HTTP,

@@ -30,7 +30,7 @@ export function AchievementsDialog({ open, onOpenChange }: Props) {
   )
 
   // Обновляем при каждом открытии, чтобы видеть актуальные данные после новой игры.
-  // Чтение через requestAnimationFrame, чтобы не было «setState in effect».
+  // Чтение через requestAnimationFrame, чтобы не было setState in effect.
   useEffect(() => {
     if (!open) return
     const id = requestAnimationFrame(() => {

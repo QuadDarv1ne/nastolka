@@ -30,7 +30,7 @@ export function saveLang(lang: Lang) {
 // Словарь всех строк. Ключи — на английском (camelCase), значения — ru/en.
 export const STRINGS = {
   // Шапка и общие
-  appName: { ru: "«Настолка»", en: "«Nastolka»" },
+  appName: { ru: "Настолка", en: "Nastolka" },
   appSubtitle: { ru: "Версия настольной игры из шоу Шальнова и Бебуришвили", en: "Board game from Shalnov & Beburishvili show" },
   rules: { ru: "Правила", en: "Rules" },
   history: { ru: "История", en: "History" },
@@ -114,7 +114,7 @@ export const STRINGS = {
   pause: { ru: "Пауза", en: "Pause" },
   resume: { ru: "Продолжить", en: "Resume" },
   pausedHint: {
-    ru: "Пауза. Слово скрыто. Нажмите «Продолжить», чтобы возобновить таймер.",
+    ru: "Пауза. Слово скрыто. Нажмите Продолжить, чтобы возобновить таймер.",
     en: "Paused. Word is hidden. Press \"Resume\" to continue the timer.",
   },
   exit: { ru: "Выйти", en: "Exit" },
@@ -135,7 +135,7 @@ export const STRINGS = {
   drawWithFinger: { ru: "рисуй пальцем", en: "draw with finger" },
   clear: { ru: "Очистить", en: "Clear" },
   scoredResultHint: {
-    ru: "Угадали — жми «Угадали!», не получается — «Пропустить» (очки не идут).",
+    ru: "Угадали — жми Угадали!, не получается — Пропустить (очки не идут).",
     en: "Guessed? Press \"Guessed!\". Failed? Press \"Skip\" (no points).",
   },
 
@@ -153,7 +153,7 @@ export const STRINGS = {
   stealTurn: { ru: "Кража хода", en: "Steal turn" },
   stealNoticeTitle: { ru: "Кража хода у команды", en: "Steal turn for team" },
   stealNoticeHint: {
-    ru: "Один раз за всю игру эта команда может украсть ход у соперника — после своего раунда жмите «Кража хода» вместо «Передать ход».",
+    ru: "Один раз за всю игру эта команда может украсть ход у соперника — после своего раунда жмите Кража хода вместо Передать ход.",
     en: "Once per game this team can steal the turn from opponents — after your round press \"Steal turn\" instead of \"Pass turn\".",
   },
   stealActivate: { ru: "Кража хода! Играем ещё раз", en: "Steal turn! Play again" },
@@ -191,16 +191,16 @@ export const STRINGS = {
   chooseMethod: { ru: "Выберите способ объяснения:", en: "Pick the way of explaining:" },
 
   // Rules dialog
-  rulesTitle: { ru: "Как играть в «Настолку»", en: "How to play «Nastolka»" },
+  rulesTitle: { ru: "Как играть в Настолку", en: "How to play Nastolka" },
   rulesDescription: { ru: "Короткая памятка по правилам — для тех, кто первый раз играет.", en: "Quick rules — for first-time players." },
   rulesIntro: {
-    ru: "«Настолка» — командная игра на объяснение слов. Две команды по очереди бросают один общий кубик. На гранях кубика — не цифры, а способы объяснения:",
-    en: "«Nastolka» is a team word-explaining game. Two teams take turns rolling a single dice. The dice faces show not numbers, but ways of explaining:",
+    ru: "Настолка — командная игра на объяснение слов. Две команды по очереди бросают один общий кубик. На гранях кубика — не цифры, а способы объяснения:",
+    en: "Nastolka is a team word-explaining game. Two teams take turns rolling a single dice. The dice faces show not numbers, but ways of explaining:",
   },
   rulesByMethod: { ru: "За способ", en: "By method" },
   rulesByDifficulty: { ru: "За сложность", en: "By difficulty" },
   rulesExample: { ru: "Очки = сумма за способ + за сложность слова.", en: "Points = method + difficulty." },
-  rulesExampleDetail: { ru: " Например: «Жестами» (3) + «Сложное» (3) = 6 очков.", en: " Example: Gestures (3) + Hard (3) = 6 points." },
+  rulesExampleDetail: { ru: " Например: Жестами (3) + Сложное (3) = 6 очков.", en: " Example: Gestures (3) + Hard (3) = 6 points." },
   rulesPointsTitle: { ru: "Сколько очков даётся за ответ", en: "How many points per answer" },
   rulesRound: { ru: "Как проходит раунд", en: "How a round goes" },
   rulesRound1: { ru: "Команда бросает кубик и видит способ объяснения.", en: "Team rolls the dice and sees the way of explaining." },
@@ -211,16 +211,16 @@ export const STRINGS = {
   rulesRound6: { ru: "Ход переходит другой команде.", en: "Turn passes to the other team." },
   rulesChipsTitle: { ru: "Фишки команды (4 на всю игру)", en: "Team chips (4 per game)" },
   rulesChipsHint: { ru: "Каждая команда получает по 4 фишки — используйте стратегически!", en: "Each team gets 4 chips — use them strategically!" },
-  rulesChipX2: { ru: "удвоить очки за текущий раунд. Активируется до нажатия «Угадали!».", en: "double points for the round. Activate before pressing \"Guessed!\"." },
+  rulesChipX2: { ru: "удвоить очки за текущий раунд. Активируется до нажатия Угадали!.", en: "double points for the round. Activate before pressing \"Guessed!\"." },
   rulesChipPlus10: { ru: "добавить 10 секунд к таймеру во время раунда.", en: "add 10 seconds during the round." },
   rulesChipPlus5: { ru: "добавить 5 секунд к таймеру во время раунда.", en: "add 5 seconds during the round." },
   rulesStealTurn: { ru: "🎲 Кража хода (1 рандомной команде) — украсть ход у соперника, остаться за кубиком.", en: "🎲 Steal turn (1 random team) — steal the turn, stay at the dice." },
   rulesStealHint: {
-    ru: "В начале игры случайно одной команде выдаётся карточка «Кража хода». После своего раунда можно украть ход у соперника — жмите «Кража хода» вместо «Передать ход», и команда играет ещё один раунд подряд.",
+    ru: "В начале игры случайно одной команде выдаётся карточка Кража хода. После своего раунда можно украть ход у соперника — жмите Кража хода вместо Передать ход, и команда играет ещё один раунд подряд.",
     en: "At the start, one random team gets a \"Steal turn\" card. After your round, press \"Steal turn\" instead of \"Pass turn\" to play one more round in a row.",
   },
   rulesTip: {
-    ru: "Совет: «×2» выгоднее всего на способе «Жестами» (3 очка) со «Сложным» словом (3 очка) — итого 6 × 2 = 12 очков!",
+    ru: "Совет: ×2 выгоднее всего на способе Жестами (3 очка) со Сложным словом (3 очка) — итого 6 × 2 = 12 очков!",
     en: "Tip: ×2 is best with Gestures (3) + Hard word (3) — total 6 × 2 = 12 points!",
   },
   rulesWin: { ru: "Первая команда, набравшая заданное количество очков, побеждает. Удачи и весёлой игры!", en: "First team to reach the target wins. Good luck!" },
@@ -238,8 +238,8 @@ export const STRINGS = {
 
   // Footer
   footer: {
-    ru: "Фанатская интерактивная версия настольной игры «Настолка». Вдохновлено шоу Шальнова и Бебуришвили на канале Medium Sport.",
-    en: "Fan interactive version of the «Nastolka» board game. Inspired by Shalnov & Beburishvili show on Medium Sport.",
+    ru: "Фанатская интерактивная версия настольной игры Настолка. Вдохновлено шоу Шальнова и Бебуришвили на канале Medium Sport.",
+    en: "Fan interactive version of the Nastolka board game. Inspired by Shalnov & Beburishvili show on Medium Sport.",
   },
 
   // Достижения
@@ -275,8 +275,8 @@ export const STRINGS = {
 
   // Share
   shareText: {
-    ru: "Играем в «Настолку» — командную игру на объяснение слов! Бросай кубик, объясняй, зарабатывай очки.",
-    en: "Playing «Nastolka» — a team word-explaining game! Roll the dice, explain, score points.",
+    ru: "Играем в Настолку — командную игру на объяснение слов! Бросай кубик, объясняй, зарабатывай очки.",
+    en: "Playing Nastolka — a team word-explaining game! Roll the dice, explain, score points.",
   },
   shareCopied: { ru: "Ссылка скопирована в буфер обмена!", en: "Link copied to clipboard!" },
 
@@ -362,7 +362,7 @@ export const STRINGS = {
 
   // Карточка кражи хода
   stealCardHint: {
-    ru: "Один раз за всю игру эта команда может украсть ход у соперника — после своего раунда жмите «Кража хода» вместо «Передать ход».",
+    ru: "Один раз за всю игру эта команда может украсть ход у соперника — после своего раунда жмите Кража хода вместо Передать ход.",
     en: "Once per game this team can steal the turn — after your round press \"Steal turn\" instead of \"Pass turn\".",
   },
   stealTurnButton: { ru: "🎲 Кража хода! Играем ещё раз", en: "🎲 Steal turn! Play again" },
@@ -377,7 +377,7 @@ export const STRINGS = {
   pause: { ru: "Пауза", en: "Pause" },
   resume: { ru: "Продолжить", en: "Resume" },
   pausedHint: { ru: "Пауза. Слово скрыто.", en: "Paused. Word is hidden." },
-  pausedHint2: { ru: "Нажмите «Продолжить», чтобы возобновить таймер.", en: "Press \"Resume\" to continue the timer." },
+  pausedHint2: { ru: "Нажмите Продолжить, чтобы возобновить таймер.", en: "Press \"Resume\" to continue the timer." },
   forAnswerLabel: { ru: "За ответ:", en: "For answer:" },
   multiplierActivated: { ru: "активирован!", en: "activated!" },
   explainByMethodPrefix: { ru: "Объясни способом", en: "Explain using" },
@@ -386,12 +386,12 @@ export const STRINGS = {
   wordHiddenHint: { ru: "Только один игрок смотрит на экран. Остальные — отворачиваются.", en: "Only one player looks at the screen. Others turn away." },
   swapWordLabel: { ru: "Заменить слово", en: "Swap word" },
   swapsCount: { ru: "замен", en: "swaps" },
-  scoredHint: { ru: "Угадали — жми «Угадали!», не получается — «Пропустить» (очки не идут).", en: "Guessed? Press \"Guessed!\". Failed? Press \"Skip\" (no points)." },
+  scoredHint: { ru: "Угадали — жми Угадали!, не получается — Пропустить (очки не идут).", en: "Guessed? Press \"Guessed!\". Failed? Press \"Skip\" (no points)." },
   roundsPlayed: { ru: "Сыграно раундов:", en: "Rounds played:" },
   finalScore: { ru: "Финальный счёт:", en: "Final score:" },
   footerText: {
-    ru: "Фанатская интерактивная версия настольной игры «Настолка». Вдохновлено шоу Шальнова и Бебуришвили на канале Medium Sport.",
-    en: "Fan interactive version of the «Nastolka» board game. Inspired by Shalnov & Beburishvili show on Medium Sport.",
+    ru: "Фанатская интерактивная версия настольной игры Настолка. Вдохновлено шоу Шальнова и Бебуришвили на канале Medium Sport.",
+    en: "Fan interactive version of the Nastolka board game. Inspired by Shalnov & Beburishvili show on Medium Sport.",
   },
   teamNamePlaceholder: { ru: "Название команды", en: "Team name" },
   chooseMethodPrompt: { ru: "Выберите способ объяснения:", en: "Pick the way of explaining:" },

@@ -11,7 +11,7 @@ export interface GlobalStats {
   totalPoints: number       // суммарные очки за все сессии
   bestRoundPoints: number   // рекорд: больше всего очков за один раунд
   // winsByTeam не имеет смысла — имена команд разные в разных играх.
-  // Храним «самая длинная игра» и «самая результативная победа»:
+  // Храним самая длинная игра и самая результативная победа:
   longestGameRounds: number // максимальное число раундов в одной игре
   bestScore: number          // максимальный финальный счёт победителя
   lastPlayedAt: number      // timestamp последней игры
@@ -59,7 +59,7 @@ function saveGlobalStats(stats: GlobalStats) {
 
 /** Записать окончание одной игры.
  *  Принимает историю раундов, общее число замен и финальный счёт победителя.
- *  roundPoints — массив очков за каждый раунд (для рекорда «лучший раунд»).
+ *  roundPoints — массив очков за каждый раунд (для рекорда лучший раунд).
  */
 export function recordGameComplete(args: {
   rounds: number
@@ -87,7 +87,7 @@ export function recordGameComplete(args: {
   return next
 }
 
-/** Полный сброс статистики (для кнопки «Очистить достижения») */
+/** Полный сброс статистики (для кнопки Очистить достижения) */
 export function resetGlobalStats(): GlobalStats {
   const empty = defaultStats()
   saveGlobalStats(empty)

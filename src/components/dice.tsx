@@ -36,12 +36,12 @@ interface DiceProps {
 }
 
 /**
- * Кубик для «Настолки» — большой, мягкий, мультяшный.
+ * Кубик для Настолки — большой, мягкий, мультяшный.
  * Во время броска быстро меняется лицо и трясётся корпус.
- * После остановки — крупная «лицевая» грань с иконкой и подписью.
+ * После остановки — крупная лицевая грань с иконкой и подписью.
  */
 export function Dice({ method, rolling, size = 220, lang = "ru" }: DiceProps) {
-  // Используем упрощённый «2D-кубик»: большая грань с иконкой + эффект тени
+  // Используем упрощённый 2D-кубик: большая грань с иконкой + эффект тени
   const Icon = method ? ICONS[method.icon] ?? Dices : Dices
   const gradient = method
     ? `bg-gradient-to-br ${method.gradient}`
@@ -85,7 +85,7 @@ export function Dice({ method, rolling, size = 220, lang = "ru" }: DiceProps) {
         />
         <div className="absolute inset-2 rounded-2xl bg-white/10 ring-1 ring-white/30" />
 
-        {/* Быстро меняющаяся «грань» во время броска */}
+        {/* Быстро меняющаяся грань во время броска */}
         {rolling && <RollingFaces size={size} />}
 
         {/* Финальная грань */}
