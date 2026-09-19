@@ -636,14 +636,14 @@ function HeaderBar({
   }
 
   return (
-    <header className="safe-top w-full max-w-5xl px-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-rose-500 via-amber-400 to-emerald-500 text-white shadow-lg sm:h-12 sm:w-12">
+    <header className="safe-top safe-x w-full max-w-5xl px-3 sm:px-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 sm:gap-x-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-rose-500 via-amber-400 to-emerald-500 text-white shadow-lg sm:h-12 sm:w-12">
             <Dices className="h-5 w-5 sm:h-7 sm:w-7" strokeWidth={2.4} />
           </div>
-          <div>
-            <h1 className="text-xl font-black leading-none tracking-tight sm:text-3xl">
+          <div className="min-w-0">
+            <h1 className="truncate text-lg font-black leading-none tracking-tight sm:text-3xl">
               {t(lang, "appName")}
             </h1>
             <p className="hidden text-xs text-muted-foreground sm:block sm:text-sm">
@@ -651,34 +651,34 @@ function HeaderBar({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-1 sm:gap-1.5">
-          <Button variant="ghost" size="sm" onClick={onShowMultiplayer} aria-label="Multiplayer">
-            <Radio className={`h-4 w-4 ${multiplayerStatus === "connected" ? "text-emerald-500" : ""}`} />
+        <div className="flex items-center gap-0.5 sm:gap-1.5">
+          <Button variant="ghost" size="sm" className="size-9 p-0 sm:size-10" onClick={onShowMultiplayer} aria-label="Multiplayer">
+            <Radio className={`size-4 ${multiplayerStatus === "connected" ? "text-emerald-500" : ""}`} />
           </Button>
-          <Button variant="ghost" size="sm" onClick={onToggleLang} aria-label="Change language">
-            <Languages className="h-4 w-4" />
-            <span className="ml-0.5 text-[10px] font-bold uppercase">{lang}</span>
+          <Button variant="ghost" size="sm" className="h-9 px-1.5 sm:h-10 sm:px-2" onClick={onToggleLang} aria-label="Change language">
+            <Languages className="size-4" />
+            <span className="text-[10px] font-bold uppercase">{lang}</span>
           </Button>
-          <Button variant="ghost" size="sm" onClick={onShowAchievements} aria-label={t(lang, "achievements")}>
-            <Award className="h-4 w-4" />
+          <Button variant="ghost" size="sm" className="size-9 p-0 sm:size-10" onClick={onShowAchievements} aria-label={t(lang, "achievements")}>
+            <Award className="size-4" />
           </Button>
           {hasHistory && (
-            <Button variant="ghost" size="sm" onClick={onShowHistory} aria-label={t(lang, "historyFull")}>
-              <ListChecks className="h-4 w-4" />
-              <span className="ml-1 hidden sm:inline">{t(lang, "history")}</span>
+            <Button variant="ghost" size="sm" className="h-9 px-2 sm:h-10" onClick={onShowHistory} aria-label={t(lang, "historyFull")}>
+              <ListChecks className="size-4" />
+              <span className="hidden sm:inline">{t(lang, "history")}</span>
             </Button>
           )}
-          <Button variant="ghost" size="sm" onClick={handleShare} aria-label={t(lang, "share")}>
-            <Share2 className="h-4 w-4" />
+          <Button variant="ghost" size="sm" className="size-9 p-0 sm:size-10" onClick={handleShare} aria-label={t(lang, "share")}>
+            <Share2 className="size-4" />
           </Button>
-          <Button variant="ghost" size="sm" onClick={toggleMute} aria-label={muted ? t(lang, "unmute") : t(lang, "mute")}>
-            {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          <Button variant="ghost" size="sm" className="size-9 p-0 sm:size-10" onClick={toggleMute} aria-label={muted ? t(lang, "unmute") : t(lang, "mute")}>
+            {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
           </Button>
-          <Button variant="ghost" size="sm" onClick={toggle} aria-label={t(lang, "themeDark")}>
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          <Button variant="ghost" size="sm" className="size-9 p-0 sm:size-10" onClick={toggle} aria-label={t(lang, "themeDark")}>
+            {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </Button>
-          <Button variant="outline" size="sm" onClick={onShowRules}>
-            <Info className="mr-1 h-4 w-4" />
+          <Button variant="outline" size="sm" className="h-9 px-2.5 sm:h-10" onClick={onShowRules}>
+            <Info className="size-4" />
             <span className="hidden sm:inline">{t(lang, "rules")}</span>
           </Button>
         </div>
@@ -698,53 +698,79 @@ function TeamScoreCard({
 }) {
   const { t, lang } = useI18n()
   return (
-    <motion.div
-      animate={active ? { scale: 1.04 } : { scale: 1 }}
-      transition={{ type: "spring", stiffness: 220, damping: 18 }}
-      className={`relative flex-1 overflow-hidden rounded-3xl bg-gradient-to-br ${team.color} p-5 text-white shadow-xl ${
-        active ? "pulse-active" : ""
-      }`}
-    >
-      <div className="absolute -right-6 -top-6 select-none text-[7rem] opacity-25">
-        {team.emoji}
-      </div>
-      <div className="relative z-10">
-        <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider opacity-90">
-          {active && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
-                    {t(lang, "playing")}
-            </span>
-          )}
-          <span className="truncate">{team.name}</span>
+    <div className="team-card">
+      <motion.div
+        animate={active ? { scale: 1.04 } : { scale: 1 }}
+        transition={{ type: "spring", stiffness: 220, damping: 18 }}
+        className={`team-card-inner relative overflow-hidden rounded-2xl bg-gradient-to-br ${team.color} text-white shadow-xl sm:rounded-3xl ${
+          active ? "pulse-active" : ""
+        }`}
+      >
+        <div className="team-card-emoji absolute -right-4 -top-6 select-none leading-none opacity-25">
+          {team.emoji}
         </div>
-        <div className="mt-2 flex items-end gap-2">
-          <div className="text-5xl font-black leading-none drop-shadow-md">
-            {team.score}
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider opacity-90 sm:text-sm">
+            {active && (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                {t(lang, "playing")}
+              </span>
+            )}
+            <span className="min-w-0 truncate">{team.name}</span>
           </div>
-          <div className="pb-1 text-sm font-medium opacity-80">/ {target}</div>
+          <div className="mt-1 flex items-end gap-1.5 sm:mt-2 sm:gap-2">
+            <div className="team-card-score font-black leading-none tabular-nums drop-shadow-md">
+              {team.score}
+            </div>
+            <div className="pb-1 text-xs font-medium opacity-80 sm:text-sm">/ {target}</div>
+          </div>
+          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-black/20 sm:mt-3">
+            <motion.div
+              className="h-full rounded-full bg-white/90"
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(100, (team.score / target) * 100)}%` }}
+              transition={{ type: "spring", stiffness: 120, damping: 20 }}
+            />
+          </div>
+          {/* Индикатор фишек */}
+          <div className="mt-2 flex flex-wrap items-center gap-1 text-[9px] font-semibold uppercase tracking-wider opacity-90 sm:gap-1.5 sm:text-[10px]">
+            <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5">×2 × {team.chips.x2}</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5">+10с × {team.chips.plus10}</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5">+5с × {team.chips.plus5}</span>
+            {team.chips.stealTurn > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-fuchsia-600 to-violet-700 px-1.5 py-0.5 font-bold">
+                {t("stealActivateShort")}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-black/20">
-          <motion.div
-            className="h-full rounded-full bg-white/90"
-            initial={{ width: 0 }}
-            animate={{ width: `${Math.min(100, (team.score / target) * 100)}%` }}
-            transition={{ type: "spring", stiffness: 120, damping: 20 }}
-          />
-        </div>
-        {/* Индикатор фишек */}
-        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider opacity-90">
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5">×2 × {team.chips.x2}</span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5">+10с × {team.chips.plus10}</span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5">+5с × {team.chips.plus5}</span>
-          {team.chips.stealTurn > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-fuchsia-600 to-violet-700 px-1.5 py-0.5 font-bold">
-              {t("stealActivateShort")}
-            </span>
-          )}
-        </div>
-      </div>
-    </motion.div>
+      </motion.div>
+    </div>
+  )
+}
+
+/** Сетка карточек команд — колонки считаются от доступной ширины */
+function TeamGrid({
+  teams,
+  activeTeam,
+  target,
+}: {
+  teams: Team[]
+  activeTeam: number
+  target: number
+}) {
+  return (
+    <div className="team-grid mb-6 w-full">
+      {teams.map((team, i) => (
+        <TeamScoreCard
+          key={i}
+          team={team}
+          active={activeTeam === i}
+          target={target}
+        />
+      ))}
+    </div>
   )
 }
 
@@ -864,7 +890,7 @@ function ChipButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`relative inline-flex flex-col items-center rounded-xl ${color} px-3 py-1.5 text-white shadow transition ${
+      className={`relative inline-flex min-h-11 min-w-19 flex-col items-center justify-center rounded-xl ${color} px-3 py-1.5 text-white shadow transition ${
         disabled
           ? "opacity-30 cursor-not-allowed"
           : "hover:scale-105 active:scale-95"
@@ -952,9 +978,9 @@ function SetupScreen({
   const allDifficulties: Difficulty[] = ["easy", "medium", "hard"]
 
   return (
-    <div className="w-full max-w-3xl px-4">
-      <Card className="p-6 shadow-xl sm:p-8">
-        <div className="space-y-6">
+    <div className="w-full max-w-3xl px-3 sm:px-4">
+      <Card className="p-4 shadow-xl sm:p-8">
+        <div className="space-y-5 sm:space-y-6">
           <div>
             <h2 className="text-xl font-bold sm:text-2xl">{t("setupTitle")}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -972,7 +998,7 @@ function SetupScreen({
                   type="button"
                   variant={teamCount === n ? "default" : "outline"}
                   onClick={() => setTeamCount(n)}
-                  className="flex-1"
+                  className="min-w-fit flex-1"
                 >
                   {n === 2 ? t("twoTeams") : n === 3 ? t("threeTeams") : t("fourTeams")}
                 </Button>
@@ -1593,7 +1619,7 @@ export default function Home() {
           )}
         </AnimatePresence>
 
-        <main className="flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-4 py-8">
+        <main className="safe-x flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-3 py-5 sm:px-4 sm:py-8">
           <AnimatePresence mode="wait">
             {/* ─────────── SETUP ─────────── */}
             {state.phase === "setup" && (
@@ -1641,18 +1667,11 @@ export default function Home() {
                 exit={{ opacity: 0, y: -16 }}
                 className="flex w-full flex-col items-center gap-6"
               >
-                <div className="w-full">
-                  <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-                    {state.teams.map((t, i) => (
-                      <TeamScoreCard
-                        key={i}
-                        team={t}
-                        active={state.activeTeam === i}
-                        target={state.targetScore}
-                      />
-                    ))}
-                  </div>
-                </div>
+                <TeamGrid
+                  teams={state.teams}
+                  activeTeam={state.activeTeam}
+                  target={state.targetScore}
+                />
 
                 <Card className="w-full max-w-xl p-6 text-center shadow-xl sm:p-8">
                   <div className="mb-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
@@ -1694,18 +1713,11 @@ export default function Home() {
                 exit={{ opacity: 0, y: -16 }}
                 className="flex w-full flex-col items-center gap-6"
               >
-                <div className="w-full">
-                  <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-                    {state.teams.map((t, i) => (
-                      <TeamScoreCard
-                        key={i}
-                        team={t}
-                        active={state.activeTeam === i}
-                        target={state.targetScore}
-                      />
-                    ))}
-                  </div>
-                </div>
+                <TeamGrid
+                  teams={state.teams}
+                  activeTeam={state.activeTeam}
+                  target={state.targetScore}
+                />
 
                 <Card className="w-full max-w-2xl p-6 shadow-xl sm:p-8">
                   <div className="mb-4 flex items-center justify-between gap-2">
@@ -1724,7 +1736,6 @@ export default function Home() {
                         state.phase === "rolling" ? null : getMethodForRound(state) ?? state.currentMethod
                       }
                       rolling={state.phase === "rolling"}
-                      size={220}
                       lang={lang}
                     />
 
@@ -1826,18 +1837,11 @@ export default function Home() {
                 exit={{ opacity: 0, y: -16 }}
                 className="flex w-full flex-col items-center gap-6"
               >
-                <div className="w-full">
-                  <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-                    {state.teams.map((t, i) => (
-                      <TeamScoreCard
-                        key={i}
-                        team={t}
-                        active={state.activeTeam === i}
-                        target={state.targetScore}
-                      />
-                    ))}
-                  </div>
-                </div>
+                <TeamGrid
+                  teams={state.teams}
+                  activeTeam={state.activeTeam}
+                  target={state.targetScore}
+                />
 
                 <Card className="w-full max-w-2xl p-6 shadow-xl sm:p-8">
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -1848,12 +1852,12 @@ export default function Home() {
                     <MethodBadge method={getMethodForRound(state)!} />
                   </div>
 
-                  <div className="relative">
+                  <div className="flex items-start gap-2 sm:gap-3">
                     <Timer secondsLeft={state.secondsLeft} total={state.roundSeconds} paused={state.paused} />
                     <button
                       type="button"
                       onClick={() => dispatch({ type: state.paused ? "RESUME" : "PAUSE" })}
-                      className="absolute right-0 top-0 inline-flex h-9 items-center gap-1.5 rounded-full bg-muted px-3 text-xs font-semibold text-muted-foreground transition hover:bg-foreground hover:text-background"
+                      className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-muted px-3 text-xs font-semibold text-muted-foreground transition hover:bg-foreground hover:text-background"
                     >
                       {state.paused ? (
                         <>
@@ -2204,13 +2208,13 @@ function Timer({ secondsLeft, total, paused = false }: { secondsLeft: number; to
   const danger = secondsLeft <= 10
   const pct = (secondsLeft / total) * 100
   return (
-    <div className="w-full pr-24">
-      <div className="mb-2 flex items-center justify-between text-sm">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Clock className={`h-4 w-4 ${paused ? "" : "animate-pulse"}`} />
-          {paused ? t(lang, "pause") : t(lang, "time")}
+    <div className="min-w-0 flex-1">
+      <div className="mb-2 flex items-center justify-between gap-2 text-sm">
+        <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
+          <Clock className={`h-4 w-4 shrink-0 ${paused ? "" : "animate-pulse"}`} />
+          <span className="truncate">{paused ? t(lang, "pause") : t(lang, "time")}</span>
         </div>
-        <div className={`font-mono text-lg font-black tabular-nums ${danger && !paused ? "text-rose-500" : ""} ${paused ? "text-muted-foreground" : ""}`}>
+        <div className={`shrink-0 font-mono text-base font-black tabular-nums sm:text-lg ${danger && !paused ? "text-rose-500" : ""} ${paused ? "text-muted-foreground" : ""}`}>
           {secondsLeft} {t(lang, "secShort")}
         </div>
       </div>

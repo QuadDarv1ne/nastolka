@@ -138,6 +138,67 @@
 .safe-bottom {
   padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
 }
+/* Боковые вырезы актуальны в landscape-ориентации телефона */
+.safe-x {
+  padding-inline: max(0px, env(safe-area-inset-left), env(safe-area-inset-right));
+}
+/* Нижняя кнопка-«шторка» Safari/Android перекрывает контент — добавляем отступ */
+.safe-sheet {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+/* ─────────────────── Адаптивность: сетки и контейнерные запросы ─────────────────── */
+
+/* Сетка карточек команд: число колонок считается от доступной ширины,
+   поэтому 2/3/4 команды аккуратно ложатся и на 320px, и на десктопе */
+.team-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 168px), 1fr));
+}
+@media (min-width: 640px) {
+  .team-grid {
+    gap: 1rem;
+  }
+}
+
+/* Карточка команды — размеры привязаны к её собственной ширине,
+   а не к экрану: одинаково читаема и в 1 колонку на телефоне, и в 4 на ТВ */
+.team-card {
+  container-type: inline-size;
+}
+.team-card-inner {
+  padding: clamp(0.75rem, 5vw, 1.25rem);
+}
+.team-card-emoji {
+  font-size: clamp(3.5rem, 22vw, 7rem);
+}
+.team-card-score {
+  font-size: clamp(1.75rem, 10vw, 3rem);
+}
+
+/* Панель со словом: длинное слово не должно вылезать за карточку */
+.word-panel {
+  container-type: inline-size;
+}
+.word-display {
+  font-size: clamp(1.6rem, 9vw, 3rem);
+}
+
+@supports (font-size: 1cqi) {
+  .team-card-inner {
+    padding: clamp(0.75rem, 5cqi, 1.25rem);
+  }
+  .team-card-emoji {
+    font-size: clamp(3.5rem, 40cqi, 7rem);
+  }
+  .team-card-score {
+    font-size: clamp(1.75rem, 18cqi, 3rem);
+  }
+  .word-display {
+    font-size: clamp(1.6rem, 13cqi, 3rem);
+  }
+}
 
 /* Праздничный фон в стиле шоу «Настолка» */
 .nastolka-bg {
@@ -157,6 +218,11 @@
 }
 
 /* Кастомный скроллбар для длинных списков */
+.nice-scroll {
+  /* Скролл внутри модалки не должен «пробрасываться» в страницу */
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
 .nice-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
 .nice-scroll::-webkit-scrollbar-track { background: transparent; }
 .nice-scroll::-webkit-scrollbar-thumb {
@@ -189,4 +255,19 @@
   background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.7), rgba(255,255,255,0.15));
   animation: float-bubble linear infinite;
   pointer-events: none;
+}
+
+/* Пользователь просит меньше движения — отключаем декоративные анимации */
+@media (prefers-reduced-motion: reduce) {
+  .bubble {
+    display: none;
+  }
+  .pulse-active {
+    animation: none;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
