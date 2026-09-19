@@ -124,6 +124,9 @@
     @apply bg-background text-foreground;
     /* Без синего хайлайта при тапах на iOS/Android */
     -webkit-tap-highlight-color: transparent;
+    /* Страховка от случайного горизонтального скролла
+       (длинные слова, эмодзи, декоративные элементы) */
+    overflow-x: clip;
   }
   /* Тапы без 300ms-задержки на мобильных */
   button, [role="button"] {
@@ -138,13 +141,50 @@
 .safe-bottom {
   padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
 }
-/* Боковые вырезы актуальны в landscape-ориентации телефона */
+/* Боковые вырезы актуальны в landscape-ориентации телефона.
+   Класс несёт и базовый горизонтальный отступ (0.75rem / 1rem на sm+),
+   поэтому он не конфликтует с утилитами px-* — единая точка входа
+   для safe-area и обычных отступов контента. */
 .safe-x {
-  padding-inline: max(0px, env(safe-area-inset-left), env(safe-area-inset-right));
+  padding-inline: max(0.75rem, env(safe-area-inset-left), env(safe-area-inset-right));
+}
+@media (min-width: 640px) {
+  .safe-x {
+    padding-inline: max(1rem, env(safe-area-inset-left), env(safe-area-inset-right));
+  }
 }
 /* Нижняя кнопка-«шторка» Safari/Android перекрывает контент — добавляем отступ */
 .safe-sheet {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+/* ─────────────── Мобильные штрихи (телефоны ≤639px) ─────────────── */
+
+/* iOS Safari авто-зумит страницу при фокусе на поле с font-size < 16px.
+   Ставим 16px на телефонах — ввод остаётся комфортным без скачков масштаба. */
+@media (max-width: 639px) {
+  input, select, textarea {
+    font-size: 16px;
+  }
+}
+
+/* Диалоги на телефонах превращаем в нижние «шторки» (bottom sheets):
+   контент ближе к большому пальцу, длинные правила/история занимают
+   почти весь экран и скроллятся внутри. На sm+ (планшеты/ПК) остаётся
+   центрированное модальное окно. */
+@media (max-width: 639px) {
+  [data-slot="dialog-content"] {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 92dvh;
+    border-radius: 1rem 1rem 0 0;
+    transform: none;
+    translate: none;
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  }
 }
 
 /* ─────────────────── Адаптивность: сетки и контейнерные запросы ─────────────────── */

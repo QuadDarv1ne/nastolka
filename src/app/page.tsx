@@ -636,7 +636,7 @@ function HeaderBar({
   }
 
   return (
-    <header className="safe-top safe-x w-full max-w-5xl px-3 sm:px-4">
+    <header className="safe-top safe-x w-full max-w-5xl">
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 sm:gap-x-4">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-rose-500 via-amber-400 to-emerald-500 text-white shadow-lg sm:h-12 sm:w-12">
@@ -651,33 +651,35 @@ function HeaderBar({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-0.5 sm:gap-1.5">
-          <Button variant="ghost" size="sm" className="size-9 p-0 sm:size-10" onClick={onShowMultiplayer} aria-label="Multiplayer">
+        {/* Кнопки могут переноситься на вторую строку на узких экранах —
+            иконки компактнее на телефонах, крупнее на планшетах/ПК */}
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-1 sm:gap-1.5">
+          <Button variant="ghost" size="sm" className="size-8 p-0 sm:size-10" onClick={onShowMultiplayer} aria-label="Multiplayer">
             <Radio className={`size-4 ${multiplayerStatus === "connected" ? "text-emerald-500" : ""}`} />
           </Button>
-          <Button variant="ghost" size="sm" className="h-9 px-1.5 sm:h-10 sm:px-2" onClick={onToggleLang} aria-label="Change language">
+          <Button variant="ghost" size="sm" className="h-8 px-1.5 sm:h-10 sm:px-2" onClick={onToggleLang} aria-label="Change language">
             <Languages className="size-4" />
             <span className="text-[10px] font-bold uppercase">{lang}</span>
           </Button>
-          <Button variant="ghost" size="sm" className="size-9 p-0 sm:size-10" onClick={onShowAchievements} aria-label={t(lang, "achievements")}>
+          <Button variant="ghost" size="sm" className="size-8 p-0 sm:size-10" onClick={onShowAchievements} aria-label={t(lang, "achievements")}>
             <Award className="size-4" />
           </Button>
           {hasHistory && (
-            <Button variant="ghost" size="sm" className="h-9 px-2 sm:h-10" onClick={onShowHistory} aria-label={t(lang, "historyFull")}>
+            <Button variant="ghost" size="sm" className="h-8 px-2 sm:h-10" onClick={onShowHistory} aria-label={t(lang, "historyFull")}>
               <ListChecks className="size-4" />
               <span className="hidden sm:inline">{t(lang, "history")}</span>
             </Button>
           )}
-          <Button variant="ghost" size="sm" className="size-9 p-0 sm:size-10" onClick={handleShare} aria-label={t(lang, "share")}>
+          <Button variant="ghost" size="sm" className="size-8 p-0 sm:size-10" onClick={handleShare} aria-label={t(lang, "share")}>
             <Share2 className="size-4" />
           </Button>
-          <Button variant="ghost" size="sm" className="size-9 p-0 sm:size-10" onClick={toggleMute} aria-label={muted ? t(lang, "unmute") : t(lang, "mute")}>
+          <Button variant="ghost" size="sm" className="size-8 p-0 sm:size-10" onClick={toggleMute} aria-label={muted ? t(lang, "unmute") : t(lang, "mute")}>
             {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
           </Button>
-          <Button variant="ghost" size="sm" className="size-9 p-0 sm:size-10" onClick={toggle} aria-label={t(lang, "themeDark")}>
+          <Button variant="ghost" size="sm" className="size-8 p-0 sm:size-10" onClick={toggle} aria-label={t(lang, "themeDark")}>
             {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </Button>
-          <Button variant="outline" size="sm" className="h-9 px-2.5 sm:h-10" onClick={onShowRules}>
+          <Button variant="outline" size="sm" className="h-8 px-2 sm:h-10" onClick={onShowRules}>
             <Info className="size-4" />
             <span className="hidden sm:inline">{t(lang, "rules")}</span>
           </Button>
@@ -1023,14 +1025,14 @@ function SetupScreen({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label className="mb-2 block">{t("targetScore")}</Label>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                 {[5, 10, 15, 20, 30].map((v) => (
                   <Button
                     key={v}
                     type="button"
                     variant={target === v ? "default" : "outline"}
                     onClick={() => setTarget(v)}
-                    className="flex-1"
+                    className="w-full"
                   >
                     {v} {t("pointsShort")}
                   </Button>
@@ -1039,14 +1041,14 @@ function SetupScreen({
             </div>
             <div>
               <Label className="mb-2 block">{t("roundTime")}</Label>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {[30, 45, 60, 90].map((v) => (
                   <Button
                     key={v}
                     type="button"
                     variant={round === v ? "default" : "outline"}
                     onClick={() => setRound(v)}
-                    className="flex-1"
+                    className="w-full"
                   >
                     {v} {t("secShort")}
                   </Button>
@@ -1619,7 +1621,7 @@ export default function Home() {
           )}
         </AnimatePresence>
 
-        <main className="safe-x flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-3 py-5 sm:px-4 sm:py-8">
+        <main className="safe-x flex w-full max-w-5xl flex-1 flex-col items-center justify-center py-5 sm:py-8">
           <AnimatePresence mode="wait">
             {/* ─────────── SETUP ─────────── */}
             {state.phase === "setup" && (
@@ -1673,13 +1675,13 @@ export default function Home() {
                   target={state.targetScore}
                 />
 
-                <Card className="w-full max-w-xl p-6 text-center shadow-xl sm:p-8">
+                <Card className="w-full max-w-xl p-5 text-center shadow-xl sm:p-8">
                   <div className="mb-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                     {t(lang, "teamTurnShort")}
                   </div>
                   <div className="mb-1 flex items-center justify-center gap-3">
                     <span className="text-5xl">{activeTeam.emoji}</span>
-                    <div className="text-3xl font-black sm:text-4xl">{activeTeam.name}</div>
+                    <div className="max-w-full break-words text-balance text-3xl font-black sm:text-4xl">{activeTeam.name}</div>
                   </div>
                   <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">
                     {t(lang, "onePlayerHint")}
@@ -1719,7 +1721,7 @@ export default function Home() {
                   target={state.targetScore}
                 />
 
-                <Card className="w-full max-w-2xl p-6 shadow-xl sm:p-8">
+                <Card className="w-full max-w-2xl p-5 shadow-xl sm:p-8">
                   <div className="mb-4 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-3xl">{activeTeam.emoji}</span>
@@ -1843,7 +1845,7 @@ export default function Home() {
                   target={state.targetScore}
                 />
 
-                <Card className="w-full max-w-2xl p-6 shadow-xl sm:p-8">
+                <Card className="w-full max-w-2xl p-5 shadow-xl sm:p-8">
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-2xl">{activeTeam.emoji}</span>
@@ -1909,7 +1911,7 @@ export default function Home() {
                         initial={{ scale: 0.7, opacity: 0, rotate: -3 }}
                         animate={{ scale: 1, opacity: 1, rotate: 0 }}
                         transition={{ type: "spring", stiffness: 240, damping: 18 }}
-                        className="my-2 text-4xl font-black tracking-tight sm:text-5xl"
+                        className="my-2 break-words text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl"
                       >
                         {state.currentWord.word}
                       </motion.div>
@@ -2000,7 +2002,7 @@ export default function Home() {
                 exit={{ opacity: 0, y: -16 }}
                 className="w-full max-w-xl"
               >
-                <Card className="p-8 text-center shadow-xl">
+                <Card className="p-5 text-center shadow-xl sm:p-8">
                   <motion.div
                     initial={{ scale: 0.6, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
@@ -2064,7 +2066,7 @@ export default function Home() {
                     <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       {t(lang, "scoreLabel")}
                     </div>
-                    <div className="mt-1 flex items-center justify-center gap-6">
+                    <div className="mt-1 flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
                       {state.teams.map((t, i) => (
                         <div key={i} className="flex items-center gap-2">
                           <span className="text-2xl">{t.emoji}</span>
@@ -2109,7 +2111,7 @@ export default function Home() {
                 exit={{ opacity: 0 }}
                 className="w-full max-w-xl"
               >
-                <Card className="p-8 text-center shadow-2xl">
+                <Card className="p-5 text-center shadow-2xl sm:p-8">
                   <motion.div
                     initial={{ rotate: -20, scale: 0 }}
                     animate={{ rotate: 0, scale: 1 }}
@@ -2121,7 +2123,7 @@ export default function Home() {
                   <div className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                     {t(lang, "winner")}
                   </div>
-                  <h2 className="mt-1 text-4xl font-black">
+                  <h2 className="mt-1 break-words text-3xl font-black sm:text-4xl">
                     {state.teams[state.winner].emoji} {state.teams[state.winner].name}
                   </h2>
                   <p className="mt-2 text-muted-foreground">

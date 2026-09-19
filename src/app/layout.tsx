@@ -36,9 +36,8 @@ export const viewport: Viewport = {
   ],
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  // cover — для PWA на устройствах с чёлкой/вырезом (safe-area учитывается в CSS)
+  // Не блокируем масштабирование: zoom по WCAG (1.4.4 / 1.4.10) обязателен
+  // для доступности на мобильных. safe-area и отступы уже учтены в CSS.
   viewportFit: "cover",
 }
 

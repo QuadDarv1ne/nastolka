@@ -150,18 +150,18 @@ export function DrawingCanvas({ resetKey }: DrawingCanvasProps) {
             key={c}
             type="button"
             onClick={() => setColor(c)}
-            className={`h-7 w-7 rounded-full border-2 transition hover:scale-110 ${
+            className={`h-9 w-9 rounded-full border-2 transition hover:scale-110 sm:h-8 sm:w-8 ${
               color === c ? "border-foreground scale-110" : "border-transparent"
             }`}
             style={{ backgroundColor: c }}
             aria-label={`Цвет ${c}`}
           />
         ))}
-        <div className="mx-1 h-6 w-px bg-border" />
+        <div className="mx-1 h-7 w-px bg-border" />
         <button
           type="button"
           onClick={() => setStrokeWidth(2)}
-          className={`grid h-7 w-7 place-items-center rounded-full border-2 transition ${
+          className={`grid h-9 w-9 place-items-center rounded-full border-2 transition sm:h-8 sm:w-8 ${
             strokeWidth === 2 ? "border-foreground" : "border-transparent"
           }`}
           aria-label="Тонкая кисть"
@@ -171,7 +171,7 @@ export function DrawingCanvas({ resetKey }: DrawingCanvasProps) {
         <button
           type="button"
           onClick={() => setStrokeWidth(4)}
-          className={`grid h-7 w-7 place-items-center rounded-full border-2 transition ${
+          className={`grid h-9 w-9 place-items-center rounded-full border-2 transition sm:h-8 sm:w-8 ${
             strokeWidth === 4 ? "border-foreground" : "border-transparent"
           }`}
           aria-label="Средняя кисть"
@@ -181,18 +181,18 @@ export function DrawingCanvas({ resetKey }: DrawingCanvasProps) {
         <button
           type="button"
           onClick={() => setStrokeWidth(8)}
-          className={`grid h-7 w-7 place-items-center rounded-full border-2 transition ${
+          className={`grid h-9 w-9 place-items-center rounded-full border-2 transition sm:h-8 sm:w-8 ${
             strokeWidth === 8 ? "border-foreground" : "border-transparent"
           }`}
           aria-label="Толстая кисть"
         >
           <span className="block h-4 w-4 rounded-full bg-foreground" />
         </button>
-        <div className="mx-1 h-6 w-px bg-border" />
+        <div className="mx-1 h-7 w-px bg-border" />
         <button
           type="button"
           onClick={clearCanvas}
-          className="inline-flex h-7 items-center gap-1.5 rounded-full bg-destructive/10 px-3 text-xs font-semibold text-destructive transition hover:bg-destructive/20"
+          className="inline-flex h-9 items-center gap-1.5 rounded-full bg-destructive/10 px-3 text-xs font-semibold text-destructive transition hover:bg-destructive/20 sm:h-8"
         >
           <Trash2 className="h-3.5 w-3.5" />
           Очистить
