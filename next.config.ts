@@ -6,8 +6,10 @@ const MP_PORT = process.env.MP_PORT || "3003";
 const nextConfig: NextConfig = {
   output: "standalone",
   /* config options here */
+  // Проверка типов при сборке включена: tsc --noEmit проходит чисто
+  // (ошибки типов устранены 20.09.2026).
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   reactStrictMode: false,
   // Без этой опции Next делает 308-редирект /mp/ → /mp ещё до применения

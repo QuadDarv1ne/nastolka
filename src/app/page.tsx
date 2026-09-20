@@ -61,6 +61,7 @@ import {
   WordPicker,
   type Method,
   type MethodId,
+  type BaseMethod,
   type WordEntry,
   type WordCategory,
   type Difficulty,
@@ -715,7 +716,7 @@ function TeamScoreCard({
             {active && (
               <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
-                {t(lang, "playing")}
+                {t("playing")}
               </span>
             )}
             <span className="min-w-0 truncate">{team.name}</span>
@@ -936,10 +937,10 @@ function SetupScreen({
   const [teams, setTeams] = useState<Team[]>(
     (() => {
       const defaults: Team[] = [
-        { name: t("teamA"), color: "from-rose-500 to-pink-600", textOnColor: "text-white", emoji: "🦊", score: 0 },
-        { name: t("teamB"), color: "from-emerald-500 to-teal-600", textOnColor: "text-white", emoji: "🐻", score: 0 },
-        { name: t("teamV"), color: "from-sky-500 to-indigo-600", textOnColor: "text-white", emoji: "🦄", score: 0 },
-        { name: t("teamG"), color: "from-amber-500 to-orange-600", textOnColor: "text-white", emoji: "🐯", score: 0 },
+        { name: t("teamA"), color: "from-rose-500 to-pink-600", textOnColor: "text-white", emoji: "🦊", score: 0, chips: initialChips() },
+        { name: t("teamB"), color: "from-emerald-500 to-teal-600", textOnColor: "text-white", emoji: "🐻", score: 0, chips: initialChips() },
+        { name: t("teamV"), color: "from-sky-500 to-indigo-600", textOnColor: "text-white", emoji: "🦄", score: 0, chips: initialChips() },
+        { name: t("teamG"), color: "from-amber-500 to-orange-600", textOnColor: "text-white", emoji: "🐯", score: 0, chips: initialChips() },
       ]
       // Заменяем первые 4 элемента на initialTeams (если они были заданы ранее)
       const merged = [...defaults]
@@ -1294,13 +1295,22 @@ export default function Home() {
       const saved = localStorage.getItem(STATE_STORAGE_KEY)
       if (saved) {
         const parsed = JSON.parse(saved) as Partial<State>
-        if (parsed && (parsed.phase === "ready" || parsed.phase === "round_end" || parsed.phase === "game_over")) {
-          if (parsed.phase === "playing" || parsed.phase === "rolling" || parsed.phase === "method" || parsed.phase === "task") {
+        const parsedPhase = parsed.phase as Phase | undefined
+        // Восстанавливаем только из «безопасных» фаз — активные фазы перед
+        // сохранением уже конвертируются в "ready", но если в localStorage
+        // оказалась активная фаза (старая версия/чужая запись), откатываемся в "ready".
+        const isRestorable = parsedPhase && RESTORABLE_PHASES.includes(parsedPhase)
+        const isActive = parsedPhase && ACTIVE_PHASES.includes(parsedPhase)
+        if (isRestorable || isActive) {
+          if (isActive) {
             parsed.phase = "ready"
             parsed.currentMethod = null
             parsed.currentWord = null
             parsed.wordRevealed = false
             parsed.secondsLeft = parsed.roundSeconds ?? initialState.roundSeconds
+            parsed.lastRoundResult = null
+            parsed.lastRoundPoints = 0
+            parsed.countdownSeconds = 0
           }
           parsed.multiplier = parsed.multiplier ?? 1
           parsed.lastRoundBasePoints = parsed.lastRoundBasePoints ?? 0
@@ -1861,10 +1871,10 @@ export default function Home() {
                       state.chosenMethodForChoice === null && (
                         <div className="w-full max-w-md">
                           <div className="mb-2 text-center text-sm font-semibold text-muted-foreground">
-                            {t("chooseMethod")}
+                            {t(lang, "chooseMethod")}
                           </div>
                           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                            {Object.values(METHODS).map((m) => (
+                            {(Object.values(METHODS) as BaseMethod[]).map((m) => (
                               <button
                                 key={m.id}
                                 type="button"
@@ -2449,10 +2459,10 @@ function Timer({ secondsLeft, total, paused = false }: { secondsLeft: number; to
       <div className="mb-2 flex items-center justify-between gap-2 text-sm">
         <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
           <Clock className={`h-4 w-4 shrink-0 ${paused ? "" : "animate-pulse"}`} />
-          <span className="truncate">{paused ? t(lang, "pause") : t(lang, "time")}</span>
+          <span className="truncate">{paused ? t("pause") : t("time")}</span>
         </div>
         <div className={`shrink-0 font-mono text-base font-black tabular-nums sm:text-lg ${danger && !paused ? "text-rose-500" : ""} ${paused ? "text-muted-foreground" : ""}`}>
-          {secondsLeft} {t(lang, "secShort")}
+          {secondsLeft} {t("secShort")}
         </div>
       </div>
       <div className="h-3 w-full overflow-hidden rounded-full bg-muted">

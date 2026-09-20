@@ -113,10 +113,7 @@ export const STRINGS = {
   swapsUsed: { ru: "замен", en: "swaps" },
   pause: { ru: "Пауза", en: "Pause" },
   resume: { ru: "Продолжить", en: "Resume" },
-  pausedHint: {
-    ru: "Пауза. Слово скрыто. Нажмите Продолжить, чтобы возобновить таймер.",
-    en: "Paused. Word is hidden. Press \"Resume\" to continue the timer.",
-  },
+  pausedHint: { ru: "Пауза. Слово скрыто.", en: "Paused. Word is hidden." },
   exit: { ru: "Выйти", en: "Exit" },
 
   // Этапы раунда
@@ -161,7 +158,7 @@ export const STRINGS = {
   // Game over
   winner: { ru: "ПОБЕДИТЕЛЬ", en: "WINNER" },
   finalScore: { ru: "Финальный счёт:", en: "Final score:" },
-  roundsPlayed: { ru: "Сыграно раундов", en: "Rounds played" },
+  roundsPlayed: { ru: "Сыграно раундов:", en: "Rounds played:" },
   swapsTotal: { ru: "замен слова", en: "word swaps" },
   playAgain: { ru: "Сыграть ещё раз", en: "Play again" },
   gameStats: { ru: "Статистика игры", en: "Game stats" },
@@ -402,22 +399,15 @@ export const STRINGS = {
   // Дополнительные строки, которые упустил раньше
   teamTurnShort: { ru: "Ход команды", en: "Team turn" },
   playing: { ru: "Ходит", en: "Playing" },
-  exit: { ru: "Выйти", en: "Exit" },
-  pause: { ru: "Пауза", en: "Pause" },
-  resume: { ru: "Продолжить", en: "Resume" },
-  pausedHint: { ru: "Пауза. Слово скрыто.", en: "Paused. Word is hidden." },
   pausedHint2: { ru: "Нажмите Продолжить, чтобы возобновить таймер.", en: "Press \"Resume\" to continue the timer." },
   forAnswerLabel: { ru: "За ответ:", en: "For answer:" },
   multiplierActivated: { ru: "активирован!", en: "activated!" },
   explainByMethodPrefix: { ru: "Объясни способом", en: "Explain using" },
   wordWasLabel: { ru: "Загаданное слово было:", en: "The word was:" },
   wordHiddenLabel: { ru: "Загаданное слово", en: "Secret word" },
-  wordHiddenHint: { ru: "Только один игрок смотрит на экран. Остальные — отворачиваются.", en: "Only one player looks at the screen. Others turn away." },
   swapWordLabel: { ru: "Заменить слово", en: "Swap word" },
   swapsCount: { ru: "замен", en: "swaps" },
   scoredHint: { ru: "Угадали — жми Угадали!, не получается — Пропустить (очки не идут).", en: "Guessed? Press \"Guessed!\". Failed? Press \"Skip\" (no points)." },
-  roundsPlayed: { ru: "Сыграно раундов:", en: "Rounds played:" },
-  finalScore: { ru: "Финальный счёт:", en: "Final score:" },
   footerText: {
     ru: "Фанатская интерактивная версия настольной игры Настолка. Вдохновлено шоу Шальнова и Бебуришвили на канале Medium Sport.",
     en: "Fan interactive version of the Nastolka board game. Inspired by Shalnov & Beburishvili show on Medium Sport.",
@@ -426,7 +416,6 @@ export const STRINGS = {
   chooseMethodPrompt: { ru: "Выберите способ объяснения:", en: "Pick the way of explaining:" },
 
   // Карточка кражи хода (заметка вверху)
-  stealNoticeTitle: { ru: "Кража хода у команды", en: "Steal turn for team" },
   stealActivateShort: { ru: "🎲 Кража", en: "🎲 Steal" },
 
   // Цвета команд
@@ -439,7 +428,6 @@ export const STRINGS = {
 
   // Мелкие подписи фишек
   chipDouble: { ru: "удвоить", en: "double" },
-  chipTime: { ru: "время", en: "time" },
   chipLeft: { ru: "осталось", en: "left" },
 
   // Ручной адрес сервера мультиплеера

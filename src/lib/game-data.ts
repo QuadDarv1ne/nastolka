@@ -16,7 +16,13 @@ export interface Method {
   gradient: string
 }
 
-export const METHODS: Record<Exclude<MethodId, "choice" | "reroll">, Method> = {
+/** Один из 4 базовых способов объяснения (для кубика «Выбор») */
+export type BaseMethodId = Exclude<MethodId, "choice" | "reroll">
+
+/** Method с суженным id — как хранится в METHODS */
+export type BaseMethod = Method & { id: BaseMethodId }
+
+export const METHODS: Record<BaseMethodId, Method> = {
   words: {
     id: "words",
     label: "Словами",
