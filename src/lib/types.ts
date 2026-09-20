@@ -40,6 +40,8 @@ export function initialChips(): TeamChips {
 export interface RoundHistoryEntry {
   team: number
   word: string
+  /** Перевод для EN-локали; отсутствует в записях, сохранённых до появления переводов */
+  wordEn?: string
   category: string
   method: MethodId
   result: "scored" | "skipped"

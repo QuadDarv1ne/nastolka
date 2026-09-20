@@ -58,6 +58,7 @@ import {
   DIFFICULTY_POINTS,
   getRoundPoints,
   rollDie,
+  localizedWord,
   WordPicker,
   type Method,
   type MethodId,
@@ -505,6 +506,7 @@ function pushHistory(state: State, result: "scored" | "skipped", points = 0, mul
   const entry: RoundHistoryEntry = {
     team: state.activeTeam,
     word: state.currentWord.word,
+    wordEn: state.currentWord.wordEn,
     category: state.currentWord.category,
     method: method.id,
     result,
@@ -525,6 +527,11 @@ function pluralPoints(n: number, lang: Lang): string {
   const last = n % 10
   if (last >= 2 && last <= 4) return "очка"
   return "очков"
+}
+
+/** Слово для показа в текущем языке (EN берёт wordEn, RU — word) */
+function displayWord(entry: Pick<WordEntry, "word" | "wordEn"> | null, lang: Lang): string {
+  return entry ? localizedWord(entry, lang) : "—"
 }
 
 /* ────────────────────────────── Хелперы ────────────────────────────── */
@@ -2055,7 +2062,7 @@ export default function Home() {
                         transition={{ type: "spring", stiffness: 240, damping: 18 }}
                         className="my-2 wrap-break-word text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl"
                       >
-                        {state.currentWord.word}
+                        {displayWord(state.currentWord, lang)}
                       </motion.div>
                       <div className="text-sm text-muted-foreground">
                         {t(lang, "explainByMethodPrefix")} {(() => {
@@ -2206,7 +2213,7 @@ export default function Home() {
 
                   {state.currentWord && (
                     <p className="mt-2 text-sm text-muted-foreground">
-                      {t(lang, "wordWasLabel")} <span className="font-bold text-foreground">{state.currentWord.word}</span>
+                      {t(lang, "wordWasLabel")} <span className="font-bold text-foreground">{displayWord(state.currentWord, lang)}</span>
                     </p>
                   )}
 
@@ -2289,6 +2296,55 @@ export default function Home() {
                   <p className="mt-2 text-muted-foreground">
                     {t(lang, "finalScore")} {state.teams.map((t) => t.score).join(" : ")}
                   </p>
+
+                  {/* Пьедестал — команды выстроены по очкам */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="mt-6 flex items-end justify-center gap-2"
+                  >
+                    {(() => {
+                      const ranked = state.teams
+                        .map((tm, idx) => ({ ...tm, originalIdx: idx }))
+                        .sort((a, b) => b.score - a.score)
+                      const medals = ["🥇", "🥈", "🥉", "🏅"]
+                      const heights = [120, 90, 70, 60]
+                      const podium = [
+                        "from-amber-400/30 to-orange-500/30 ring-amber-400/40",
+                        "from-slate-300/30 to-slate-400/30 ring-slate-400/40",
+                        "from-orange-700/30 to-amber-800/30 ring-orange-600/40",
+                        "from-violet-400/30 to-purple-500/30 ring-violet-400/40",
+                      ]
+                      return ranked.map((tm, rank) => (
+                        <motion.div
+                          key={tm.originalIdx}
+                          initial={{ opacity: 0, y: 50 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.6 + rank * 0.15, type: "spring", stiffness: 220, damping: 14 }}
+                          className="flex flex-1 flex-col items-center"
+                        >
+                          <div className="mb-1 text-3xl">{medals[Math.min(rank, medals.length - 1)]}</div>
+                          <div className="text-2xl">{tm.emoji}</div>
+                          <div className="max-w-full truncate text-xs font-semibold opacity-80">{tm.name}</div>
+                          <div className="text-lg font-black">{tm.score}</div>
+                          <motion.div
+                            initial={{ height: 0 }}
+                            animate={{ height: heights[Math.min(rank, heights.length - 1)] }}
+                            transition={{ delay: 0.7 + rank * 0.15, type: "spring", stiffness: 200, damping: 18 }}
+                            className={`mt-2 flex w-full items-start justify-center rounded-t-xl bg-linear-to-b p-2 ring-1 ${
+                              podium[Math.min(rank, podium.length - 1)]
+                            }`}
+                          >
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                              #{rank + 1}
+                            </span>
+                          </motion.div>
+                        </motion.div>
+                      ))
+                    })()}
+                  </motion.div>
+
               {state.history.length > 0 && (
                     <p className="mt-1 text-xs text-muted-foreground">
                       {t(lang, "roundsPlayed")} {state.history.length} · {t(lang, "swapsCount")}: {state.swapsUsed}
@@ -2323,7 +2379,7 @@ export default function Home() {
                         <div className="mt-2 flex items-center justify-center gap-3">
                           <span className="text-2xl">{mvpTeam.emoji}</span>
                           <div className="text-center">
-                            <div className="text-xl font-black">{mvp.word}</div>
+                            <div className="text-xl font-black">{displayWord(mvp, lang)}</div>
                             <div className="text-xs text-muted-foreground">
                               {methodLabels[mvp.method]} · +{mvp.points} {pluralPoints(mvp.points, lang)}
                               {mvp.multiplier > 1 && ` (×${mvp.multiplier})`}
@@ -2621,7 +2677,7 @@ function HistoryDialog({
                       <span className={`inline-flex h-5 w-5 items-center justify-center rounded ${m.color}`}>
                         <MethodIconSmall id={e.method} />
                       </span>
-                      <span className="flex-1 truncate">{e.word}</span>
+                      <span className="flex-1 truncate">{displayWord(e, lang)}</span>
                       {e.result === "scored" ? (
                         <Check className="h-4 w-4 shrink-0 text-emerald-500" />
                       ) : (
