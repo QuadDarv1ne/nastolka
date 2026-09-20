@@ -188,7 +188,7 @@ export function MultiplayerDialog({
                   onClick={() => setSyncMode("host")}
                   className={`flex flex-col items-start gap-1 rounded-xl p-3 text-left transition ${
                     syncMode === "host"
-                      ? "bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow"
+                      ? "bg-linear-to-br from-amber-400 to-orange-500 text-white shadow"
                       : "bg-card text-foreground hover:bg-muted"
                   }`}
                 >
@@ -200,7 +200,7 @@ export function MultiplayerDialog({
                   onClick={() => setSyncMode("sync")}
                   className={`flex flex-col items-start gap-1 rounded-xl p-3 text-left transition ${
                     syncMode === "sync"
-                      ? "bg-gradient-to-br from-sky-400 to-cyan-500 text-white shadow"
+                      ? "bg-linear-to-br from-sky-400 to-cyan-500 text-white shadow"
                       : "bg-card text-foreground hover:bg-muted"
                   }`}
                 >
@@ -301,7 +301,7 @@ export function MultiplayerDialog({
 
         {status === "disconnected" && mode === "create" && createdCode && (
           <div className="space-y-3 text-center">
-            <div className="rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 p-6 text-white">
+            <div className="rounded-2xl bg-linear-to-br from-amber-400 to-orange-500 p-6 text-white">
               <div className="text-xs font-semibold uppercase tracking-widest opacity-90">
                 {lang === "ru" ? "Код комнаты" : "Room code"}
               </div>

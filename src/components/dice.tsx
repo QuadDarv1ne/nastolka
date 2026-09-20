@@ -54,8 +54,8 @@ export function Dice({
   // Используем упрощённый 2D-кубик: большая грань с иконкой + эффект тени
   const Icon = method ? ICONS[method.icon] ?? Dices : Dices
   const gradient = method
-    ? `bg-gradient-to-br ${method.gradient}`
-    : "bg-gradient-to-br from-slate-400 to-slate-600"
+    ? `bg-linear-to-br ${method.gradient}`
+    : "bg-linear-to-br from-slate-400 to-slate-600"
   const px = typeof size === "number" ? `${size}px` : size
   // Все внутренние размеры считаются от --dice, поэтому кубик масштабируется целиком
   const boxStyle = { "--dice": px } as React.CSSProperties

@@ -636,7 +636,7 @@ function HeaderBar({
     <header className="safe-top safe-x w-full max-w-5xl">
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 sm:gap-x-4">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-rose-500 via-amber-400 to-emerald-500 text-white shadow-lg sm:h-12 sm:w-12">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-linear-to-br from-rose-500 via-amber-400 to-emerald-500 text-white shadow-lg sm:h-12 sm:w-12">
             <Dices className="h-5 w-5 sm:h-7 sm:w-7" strokeWidth={2.4} />
           </div>
           <div className="min-w-0">
@@ -704,7 +704,7 @@ function TeamScoreCard({
       <motion.div
         animate={active ? { scale: 1.04 } : { scale: 1 }}
         transition={{ type: "spring", stiffness: 220, damping: 18 }}
-        className={`team-card-inner relative overflow-hidden rounded-2xl bg-gradient-to-br ${team.color} text-white shadow-xl sm:rounded-3xl ${
+        className={`team-card-inner relative overflow-hidden rounded-2xl bg-linear-to-br ${team.color} text-white shadow-xl sm:rounded-3xl ${
           active ? "pulse-active" : ""
         }`}
       >
@@ -741,7 +741,7 @@ function TeamScoreCard({
             <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5">+10с × {team.chips.plus10}</span>
             <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5">+5с × {team.chips.plus5}</span>
             {team.chips.stealTurn > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-fuchsia-600 to-violet-700 px-1.5 py-0.5 font-bold">
+              <span className="inline-flex items-center gap-1 rounded-full bg-linear-to-r from-fuchsia-600 to-violet-700 px-1.5 py-0.5 font-bold">
                 {t("stealActivateShort")}
               </span>
             )}
@@ -810,7 +810,7 @@ function PointsBadge({ state }: { state: State }) {
   const d = DIFFICULTY_POINTS[state.currentWord.difficulty ?? "medium"] ?? 0
   const total = (m + d) * state.multiplier
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow">
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-linear-to-r from-amber-500 to-orange-500 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow">
       {t("forAnswerLabel")} {total} {pluralPoints(total, lang)}
       {state.multiplier > 1 && (
         <span className="opacity-90">×{state.multiplier}</span>
@@ -844,7 +844,7 @@ function ChipsBar({ state, dispatch }: { state: State; dispatch: (a: Action) => 
         disabled={disabled || x2Used || chips.x2 <= 0}
         active={x2Used}
         onClick={() => handleChip("x2")}
-        color="bg-gradient-to-br from-fuchsia-500 to-pink-600"
+        color="bg-linear-to-br from-fuchsia-500 to-pink-600"
         lang={lang}
       />
       <ChipButton
@@ -853,7 +853,7 @@ function ChipsBar({ state, dispatch }: { state: State; dispatch: (a: Action) => 
         count={chips.plus10}
         disabled={disabled || chips.plus10 <= 0}
         onClick={() => handleChip("plus10")}
-        color="bg-gradient-to-br from-sky-500 to-cyan-600"
+        color="bg-linear-to-br from-sky-500 to-cyan-600"
         lang={lang}
       />
       <ChipButton
@@ -862,7 +862,7 @@ function ChipsBar({ state, dispatch }: { state: State; dispatch: (a: Action) => 
         count={chips.plus5}
         disabled={disabled || chips.plus5 <= 0}
         onClick={() => handleChip("plus5")}
-        color="bg-gradient-to-br from-indigo-500 to-blue-600"
+        color="bg-linear-to-br from-indigo-500 to-blue-600"
         lang={lang}
       />
     </div>
@@ -1152,7 +1152,7 @@ function SetupScreen({
                   value={customWordsText}
                   onChange={(e) => setCustomWordsText(e.target.value)}
                   placeholder={t("customWordsPlaceholder")}
-                  className="min-h-[120px] resize-y font-mono text-sm"
+                  className="min-h-30 resize-y font-mono text-sm"
                   maxLength={4000}
                 />
                 <p className="mt-1.5 text-xs text-muted-foreground">
@@ -1203,10 +1203,10 @@ function TeamSetupCard({
 }) {
   const { t, lang } = useI18n()
   return (
-    <div className={`rounded-2xl bg-gradient-to-br ${team.color} p-[2px] shadow-md`}>
+    <div className={`rounded-2xl bg-linear-to-br ${team.color} p-0.5 shadow-md`}>
       <div className="rounded-2xl bg-card p-4">
         <div className="mb-3 flex items-center gap-2">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br text-2xl">
+          <div className="grid h-9 w-9 place-items-center rounded-xl bg-linear-to-br text-2xl">
             <span>{team.emoji}</span>
           </div>
           <span className="font-semibold text-muted-foreground">{label}</span>
@@ -1229,7 +1229,7 @@ function TeamSetupCard({
                 type="button"
                 disabled={disabled}
                 onClick={() => setTeam({ ...team, color: c.gradient, emoji: c.emoji })}
-                className={`relative grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br text-xl shadow transition ${
+                className={`relative grid h-10 w-10 place-items-center rounded-xl bg-linear-to-br text-xl shadow transition ${
                   c.gradient
                 } ${disabled ? "opacity-30 cursor-not-allowed" : "hover:scale-110"} ${
                   selected ? "ring-4 ring-offset-2 ring-offset-card ring-foreground/40" : ""
@@ -1713,8 +1713,8 @@ export default function Home() {
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               className="mt-3 w-full max-w-2xl px-4"
             >
-              <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-fuchsia-500/15 via-violet-500/15 to-pink-500/15 p-3 ring-1 ring-fuchsia-500/30 backdrop-blur-sm">
-                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-fuchsia-500 to-violet-600 text-white shadow">
+              <div className="flex items-center gap-3 rounded-2xl bg-linear-to-r from-fuchsia-500/15 via-violet-500/15 to-pink-500/15 p-3 ring-1 ring-fuchsia-500/30 backdrop-blur-sm">
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-linear-to-br from-fuchsia-500 to-violet-600 text-white shadow">
                   <Dices className="h-5 w-5" strokeWidth={2.4} />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1790,7 +1790,7 @@ export default function Home() {
                   </div>
                   <div className="mb-1 flex items-center justify-center gap-3">
                     <span className="text-5xl">{activeTeam.emoji}</span>
-                    <div className="max-w-full break-words text-balance text-3xl font-black sm:text-4xl">{activeTeam.name}</div>
+                    <div className="max-w-full wrap-break-word text-balance text-3xl font-black sm:text-4xl">{activeTeam.name}</div>
                   </div>
                   <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">
                     {t(lang, "onePlayerHint")}
@@ -2037,7 +2037,7 @@ export default function Home() {
                   </AnimatePresence>
 
                   {!state.paused && (
-                    <div className="mt-6 rounded-3xl bg-gradient-to-br from-amber-50 to-rose-50 p-6 text-center dark:from-amber-950/30 dark:to-rose-950/30">
+                    <div className="mt-6 rounded-3xl bg-linear-to-br from-amber-50 to-rose-50 p-6 text-center dark:from-amber-950/30 dark:to-rose-950/30">
                       <div className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                         <span>{categoryLabel(lang, state.currentWord.category)}</span>
                         {state.currentWord.difficulty && (
@@ -2053,7 +2053,7 @@ export default function Home() {
                         initial={{ scale: 0.7, opacity: 0, rotate: -3 }}
                         animate={{ scale: 1, opacity: 1, rotate: 0 }}
                         transition={{ type: "spring", stiffness: 240, damping: 18 }}
-                        className="my-2 break-words text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl"
+                        className="my-2 wrap-break-word text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl"
                       >
                         {state.currentWord.word}
                       </motion.div>
@@ -2071,7 +2071,7 @@ export default function Home() {
                       <div className="mt-3 flex items-center justify-center gap-2">
                         <PointsBadge state={state} />
                         {state.multiplier > 1 && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-1 text-xs font-black uppercase tracking-wider text-white shadow">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-linear-to-r from-amber-500 to-orange-500 px-3 py-1 text-xs font-black uppercase tracking-wider text-white shadow">
                             ×{state.multiplier} {t(lang, "multiplierActivated")}
                           </span>
                         )}
@@ -2177,7 +2177,7 @@ export default function Home() {
                     >
                       <span className={`text-5xl font-black tabular-nums sm:text-7xl ${
                         state.lastRoundPoints >= 10
-                          ? "bg-gradient-to-br from-amber-400 via-orange-500 to-pink-600 bg-clip-text text-transparent"
+                          ? "bg-linear-to-br from-amber-400 via-orange-500 to-pink-600 bg-clip-text text-transparent"
                           : "text-emerald-500"
                       }`}>
                         +{state.lastRoundPoints}
@@ -2198,7 +2198,7 @@ export default function Home() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.3 }}
-                      className="mt-2 inline-block rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-1 text-sm font-bold text-white shadow"
+                      className="mt-2 inline-block rounded-full bg-linear-to-r from-amber-500 to-orange-500 px-3 py-1 text-sm font-bold text-white shadow"
                     >
                       ×{state.lastRoundMultiplier}! {state.lastRoundBasePoints} → {state.lastRoundPoints} очков
                     </motion.p>
@@ -2251,7 +2251,7 @@ export default function Home() {
                   {state.teams[state.activeTeam]?.chips.stealTurn > 0 && (
                     <Button
                       size="lg"
-                      className="mt-2 w-full bg-gradient-to-r from-fuchsia-600 to-violet-700 font-bold text-white hover:from-fuchsia-700 hover:to-violet-800"
+                      className="mt-2 w-full bg-linear-to-r from-fuchsia-600 to-violet-700 font-bold text-white hover:from-fuchsia-700 hover:to-violet-800"
                       onClick={() => dispatch({ type: "STEAL_TURN" })}
                     >
                       <Dices className="mr-2 h-5 w-5" />
@@ -2276,14 +2276,14 @@ export default function Home() {
                     initial={{ rotate: -20, scale: 0 }}
                     animate={{ rotate: 0, scale: 1 }}
                     transition={{ type: "spring", stiffness: 220, damping: 12, delay: 0.1 }}
-                    className="mx-auto mb-4 grid h-24 w-24 place-items-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg"
+                    className="mx-auto mb-4 grid h-24 w-24 place-items-center rounded-full bg-linear-to-br from-amber-400 to-orange-500 text-white shadow-lg"
                   >
                     <Trophy className="h-12 w-12" strokeWidth={2.4} />
                   </motion.div>
                   <div className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                     {t(lang, "winner")}
                   </div>
-                  <h2 className="mt-1 break-words text-3xl font-black sm:text-4xl">
+                  <h2 className="mt-1 wrap-break-word text-3xl font-black sm:text-4xl">
                     {state.teams[state.winner].emoji} {state.teams[state.winner].name}
                   </h2>
                   <p className="mt-2 text-muted-foreground">
@@ -2315,7 +2315,7 @@ export default function Home() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 1 }}
-                        className="mt-4 rounded-2xl bg-gradient-to-br from-amber-400/20 via-orange-400/20 to-rose-400/20 p-4 ring-1 ring-amber-400/30"
+                        className="mt-4 rounded-2xl bg-linear-to-br from-amber-400/20 via-orange-400/20 to-rose-400/20 p-4 ring-1 ring-amber-400/30"
                       >
                         <div className="text-xs font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
                           {t(lang, "bestRound")}
@@ -2431,7 +2431,7 @@ export default function Home() {
             transition={{ duration: 1.8, ease: "easeOut" }}
             className="pointer-events-none fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2"
           >
-            <div className="flex items-center gap-3 rounded-3xl bg-gradient-to-br from-emerald-500/90 to-teal-600/90 px-6 py-4 text-white shadow-2xl ring-2 ring-white/40 backdrop-blur-md">
+            <div className="flex items-center gap-3 rounded-3xl bg-linear-to-br from-emerald-500/90 to-teal-600/90 px-6 py-4 text-white shadow-2xl ring-2 ring-white/40 backdrop-blur-md">
               <span className="text-5xl">{floatingScore.emoji}</span>
               <div className="flex flex-col">
                 <span className="text-6xl font-black leading-none drop-shadow-lg">+{floatingScore.points}</span>
@@ -2559,7 +2559,7 @@ function HistoryDialog({
                 return (
                   <div
                     key={i}
-                    className={`rounded-2xl bg-gradient-to-br ${tm.color} p-4 text-white shadow`}
+                    className={`rounded-2xl bg-linear-to-br ${tm.color} p-4 text-white shadow`}
                   >
                     <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider opacity-90">
                       <span className="text-lg">{tm.emoji}</span>
@@ -2731,7 +2731,7 @@ function RulesDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: 
             </ol>
           </div>
 
-          <div className="rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 p-4 dark:from-amber-950/30 dark:to-orange-950/30">
+          <div className="rounded-xl bg-linear-to-br from-amber-50 to-orange-50 p-4 dark:from-amber-950/30 dark:to-orange-950/30">
             <div className="font-semibold">{t("rulesPointsTitle")}</div>
             <p className="mt-1 text-sm text-muted-foreground">
               {t("rulesExample")}
@@ -2758,26 +2758,26 @@ function RulesDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: 
             </div>
           </div>
 
-          <div className="rounded-xl bg-gradient-to-br from-fuchsia-50 to-pink-50 p-4 dark:from-fuchsia-950/30 dark:to-pink-950/30">
+          <div className="rounded-xl bg-linear-to-br from-fuchsia-50 to-pink-50 p-4 dark:from-fuchsia-950/30 dark:to-pink-950/30">
             <div className="font-semibold">{t("rulesChipsTitle")}</div>
             <p className="mt-1 text-sm text-muted-foreground">
               {t("rulesChipsHint")}
             </p>
             <ul className="mt-2 space-y-1.5 text-sm">
               <li>
-                <span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-br from-fuchsia-500 to-pink-600 px-2 py-0.5 text-xs font-bold text-white">×2</span>
+                <span className="inline-flex items-center gap-1 rounded-md bg-linear-to-br from-fuchsia-500 to-pink-600 px-2 py-0.5 text-xs font-bold text-white">×2</span>
                 <b> ×2 (2 {t("rulesPieces")})</b> — {t("rulesChipX2")}
               </li>
               <li>
-                <span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-br from-sky-500 to-cyan-600 px-2 py-0.5 text-xs font-bold text-white">+10 {t("secShort")}</span>
+                <span className="inline-flex items-center gap-1 rounded-md bg-linear-to-br from-sky-500 to-cyan-600 px-2 py-0.5 text-xs font-bold text-white">+10 {t("secShort")}</span>
                 <b> +10 {t("rulesSeconds")} (1 {t("rulesPieces")})</b> — {t("rulesChipPlus10")}
               </li>
               <li>
-                <span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-br from-indigo-500 to-blue-600 px-2 py-0.5 text-xs font-bold text-white">+5 {t("secShort")}</span>
+                <span className="inline-flex items-center gap-1 rounded-md bg-linear-to-br from-indigo-500 to-blue-600 px-2 py-0.5 text-xs font-bold text-white">+5 {t("secShort")}</span>
                 <b> +5 {t("rulesSeconds")} (1 {t("rulesPieces")})</b> — {t("rulesChipPlus5")}
               </li>
               <li>
-                <span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-br from-fuchsia-600 to-violet-700 px-2 py-0.5 text-xs font-bold text-white">🎲</span>
+                <span className="inline-flex items-center gap-1 rounded-md bg-linear-to-br from-fuchsia-600 to-violet-700 px-2 py-0.5 text-xs font-bold text-white">🎲</span>
                 <b> {t("rulesStealTurn")}</b> — {t("rulesStealHint")}
               </li>
             </ul>

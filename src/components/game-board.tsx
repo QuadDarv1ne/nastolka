@@ -253,7 +253,7 @@ export function GameBoard({ teams, targetScore, open, onToggle, lang, activeTeam
       <button
         type="button"
         onClick={onToggle}
-        className="fixed right-0 top-1/2 z-40 -translate-y-1/2 rounded-l-2xl bg-gradient-to-br from-violet-600 to-indigo-700 px-2 py-4 text-white shadow-lg transition hover:from-violet-700 hover:to-indigo-800"
+        className="fixed right-0 top-1/2 z-40 -translate-y-1/2 rounded-l-2xl bg-linear-to-br from-violet-600 to-indigo-700 px-2 py-4 text-white shadow-lg transition hover:from-violet-700 hover:to-indigo-800"
         aria-label={t(lang, "gameBoard")}
       >
         <ChevronRight className={`h-5 w-5 transition ${open ? "rotate-180" : ""}`} />
@@ -289,7 +289,7 @@ export function GameBoard({ teams, targetScore, open, onToggle, lang, activeTeam
               <div className="mx-auto mb-4 aspect-square w-full max-w-[340px]">
                 <div
                   ref={boardRef}
-                  className="relative grid h-full w-full gap-[2px] rounded-2xl bg-gradient-to-br from-violet-100 to-indigo-100 p-[3px] dark:from-violet-950/40 dark:to-indigo-950/40"
+                  className="relative grid h-full w-full gap-0.5 rounded-2xl bg-linear-to-br from-violet-100 to-indigo-100 p-[3px] dark:from-violet-950/40 dark:to-indigo-950/40"
                   style={{
                     gridTemplateColumns: `repeat(${N}, 1fr)`,
                     gridTemplateRows: `repeat(${N}, 1fr)`,
@@ -297,7 +297,7 @@ export function GameBoard({ teams, targetScore, open, onToggle, lang, activeTeam
                 >
                   {/* Центральная область — лого с 3D-вращающимся кубиком */}
                   <div
-                    className="flex flex-col items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/15 to-indigo-500/15 p-2 text-center ring-1 ring-violet-300/40 dark:ring-violet-700/40"
+                    className="flex flex-col items-center justify-center rounded-xl bg-linear-to-br from-violet-500/15 to-indigo-500/15 p-2 text-center ring-1 ring-violet-300/40 dark:ring-violet-700/40"
                     style={{
                       gridColumn: `2 / span ${N - 2}`,
                       gridRow: `2 / span ${N - 2}`,
@@ -347,9 +347,9 @@ export function GameBoard({ teams, targetScore, open, onToggle, lang, activeTeam
                         }
                         className={`relative flex flex-col items-center justify-center overflow-hidden rounded-md border text-center transition-colors duration-200 ${
                           isFinish
-                            ? "border-amber-400 bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md"
+                            ? "border-amber-400 bg-linear-to-br from-amber-400 to-orange-500 text-white shadow-md"
                             : isStart
-                            ? "border-emerald-400 bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-md"
+                            ? "border-emerald-400 bg-linear-to-br from-emerald-400 to-teal-500 text-white shadow-md"
                             : isMile
                             ? "border-violet-300 bg-violet-100 dark:border-violet-700 dark:bg-violet-900/40"
                             : "border-border bg-card"
@@ -481,7 +481,7 @@ export function GameBoard({ teams, targetScore, open, onToggle, lang, activeTeam
 
                         {/* Сама фишка — эмодзи в цветном круге */}
                         <motion.div
-                          className={`relative grid h-full w-full place-items-center rounded-full bg-gradient-to-br ${team.color} shadow-lg ring-2 ring-card`}
+                          className={`relative grid h-full w-full place-items-center rounded-full bg-linear-to-br ${team.color} shadow-lg ring-2 ring-card`}
                           animate={
                             lastHighlight?.cell === cellScore && lastHighlight?.result === "skipped" && lastRound?.teamIdx === idx
                               ? { x: [0, -4, 4, -4, 4, 0] }
@@ -541,7 +541,7 @@ export function GameBoard({ teams, targetScore, open, onToggle, lang, activeTeam
                           exit={{ opacity: 0, x: 10 }}
                           className="flex items-center gap-1.5 text-xs"
                         >
-                          <span className={`grid h-5 w-5 place-items-center rounded-full bg-gradient-to-br ${h.teamColor} text-[10px]`}>
+                          <span className={`grid h-5 w-5 place-items-center rounded-full bg-linear-to-br ${h.teamColor} text-[10px]`}>
                             {h.teamEmoji}
                           </span>
                           <span className="font-semibold">{h.prevScore}</span>
@@ -573,7 +573,7 @@ export function GameBoard({ teams, targetScore, open, onToggle, lang, activeTeam
                     >
                       <div className="flex items-center gap-2">
                         <motion.span
-                          className={`grid h-6 w-6 place-items-center rounded-full bg-gradient-to-br ${team.color} text-sm shadow-sm`}
+                          className={`grid h-6 w-6 place-items-center rounded-full bg-linear-to-br ${team.color} text-sm shadow-sm`}
                           animate={activeTeamIdx === i
                             ? { scale: [1, 1.15, 1], rotate: [0, 5, -5, 0] }
                             : { scale: 1, rotate: 0 }
@@ -616,7 +616,7 @@ export function GameBoard({ teams, targetScore, open, onToggle, lang, activeTeam
                       </div>
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                         <motion.div
-                          className={`h-full rounded-full bg-gradient-to-r ${team.color}`}
+                          className={`h-full rounded-full bg-linear-to-r ${team.color}`}
                           initial={{ width: 0 }}
                           animate={{ width: `${pct}%` }}
                           transition={{ type: "spring", stiffness: 120, damping: 20 }}

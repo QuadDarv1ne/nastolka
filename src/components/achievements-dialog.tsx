@@ -124,7 +124,7 @@ export function AchievementsDialog({ open, onOpenChange }: Props) {
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-500"
+                  className="h-full rounded-full bg-linear-to-r from-emerald-400 to-teal-500"
                   style={{ width: `${successRate}%` }}
                 />
               </div>
@@ -196,7 +196,7 @@ function StatTile({
   accent: string
 }) {
   return (
-    <div className={`rounded-2xl bg-gradient-to-br ${accent} p-4 text-white shadow`}>
+    <div className={`rounded-2xl bg-linear-to-br ${accent} p-4 text-white shadow`}>
       <div className="mb-1 opacity-90">{icon}</div>
       <div className="text-3xl font-black tabular-nums">{value}</div>
       <div className="text-xs font-medium opacity-90">{label}</div>
