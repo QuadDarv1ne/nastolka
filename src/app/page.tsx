@@ -34,6 +34,7 @@ import {
   Share2,
   Languages,
   Radio,
+  Settings,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -69,6 +70,8 @@ import { DrawingCanvas } from "@/components/drawing-canvas"
 import { SongRecorder } from "@/components/song-recorder"
 import { AchievementsDialog } from "@/components/achievements-dialog"
 import { MultiplayerDialog } from "@/components/multiplayer-dialog"
+import { SettingsDialog } from "@/components/settings-dialog"
+import { GameBoard } from "@/components/game-board"
 import type { MultiplayerClient } from "@/lib/multiplayer"
 import {
   isMuted,
@@ -83,109 +86,38 @@ import {
   playChipPlus10,
   playChipPlus5,
   playBigScore,
+  playTeamActive,
   setMuted,
+  setHapticsEnabled,
   unlockAudio,
+  hapticRoll,
+  hapticScore,
+  hapticSkip,
+  hapticChip,
+  hapticWin,
+  hapticTick,
 } from "@/lib/sounds"
 import { recordGameComplete } from "@/lib/achievements"
 import { useTheme } from "@/hooks/use-theme"
 import { useLang } from "@/hooks/use-lang"
 import { I18nContext, useI18n } from "@/hooks/i18n-context"
 import { t, categoryLabel, difficultyLabel, type Lang, type StringKey } from "@/lib/i18n"
+import {
+  type Phase,
+  type Team,
+  type TeamChips,
+  type RoundHistoryEntry,
+  type State,
+  type Action,
+  initialChips,
+  ACTIVE_PHASES,
+  RESTORABLE_PHASES,
+} from "@/lib/types"
 
 /* ────────────────────────────── Типы ────────────────────────────── */
+// Типы Phase/Team/TeamChips/State/Action вынесены в src/lib/types.ts
+// (без циклических импортов page.tsx ↔ multiplayer.ts).
 
-type Phase =
-  | "setup"      // настройка команд и стартовой цели
-  | "ready"      // начало хода — ждём, когда бросим кубик
-  | "rolling"    // кубик крутится
-  | "method"     // кубик выпал, показываем способ — выбираем открыть слово или (если выпал Choice) — выбрать способ
-  | "task"       // слово спрятано, ждём открыть
-  | "playing"    // слово открыто, идёт таймер
-  | "round_end"  // раунд закончился — показываем результат
-  | "game_over"  // игра окончена — победитель
-
-interface Team {
-  name: string
-  color: string         // tailwind gradient like "from-rose-500 to-pink-600"
-  textOnColor: string   // "text-white"
-  emoji: string
-  score: number
-  /** Фишки команды — на всю игру */
-  chips: TeamChips
-}
-
-/** Фишки команды: 2× x2, 1× +10 сек, 1× +5 сек, опционально 1× Кража хода */
-interface TeamChips {
-  x2: number
-  plus10: number
-  plus5: number
-  stealTurn: number    // 1 — если команде случайно выпала Кража хода, иначе 0
-}
-
-function initialChips(): TeamChips {
-  return { x2: 2, plus10: 1, plus5: 1, stealTurn: 0 }
-}
-
-interface RoundHistoryEntry {
-  team: number
-  word: string
-  category: string
-  method: MethodId
-  result: "scored" | "skipped"
-  secondsLeft: number
-  roundSeconds: number
-  points: number        // сколько очков начислено (0 если skipped)
-  multiplier: number    // какой множитель был (1 или 2)
-}
-
-export interface State {
-  phase: Phase
-  teams: Team[]
-  activeTeam: number
-  targetScore: number
-  roundSeconds: number
-  currentMethod: Method | null
-  chosenMethodForChoice: MethodId | null  // когда выпал "Выбор"
-  currentWord: WordEntry | null
-  wordRevealed: boolean
-  secondsLeft: number
-  lastRoundResult: "scored" | "skipped" | null
-  lastRoundPoints: number
-  lastRoundBasePoints: number  // очки без учёта множителя (для показа)
-  lastRoundMultiplier: number  // множитель в последнем раунде
-  multiplier: number            // активный множитель текущего раунда (1 или 2)
-  recentWords: string[]
-  winner: number | null
-  history: RoundHistoryEntry[]
-  swapsUsed: number
-  paused: boolean
-  enabledCategories: WordCategory[]   // выбранные категории на setup (пусто = все)
-  enabledDifficulties: Difficulty[]   // выбранные сложности на setup (пусто = все)
-  customWords: string[]                // пользовательские слова (одна строка = одно слово)
-  stealTeam: number                    // номер команды, у которой есть фишка Кража хода (-1 = нет)
-  stealJustUsed: boolean               // флажок — была ли только что использована кража (для UI)
-}
-
-type Action =
-  | { type: "START_GAME"; teams: Team[]; targetScore: number; roundSeconds: number; enabledCategories: WordCategory[]; enabledDifficulties: Difficulty[]; customWords: string[]; word: WordEntry; stealTeam: number }
-  | { type: "ROLL" }
-  | { type: "ROLL_RESULT"; method: Method; word: WordEntry }
-  | { type: "CHOOSE_METHOD"; methodId: Exclude<MethodId, "choice" | "reroll">; word: WordEntry }
-  | { type: "SHOW_WORD" }
-  | { type: "REVEAL_WORD" }
-  | { type: "TICK" }
-  | { type: "SCORE" }
-  | { type: "SKIP" }
-  | { type: "SWAP_WORD"; word: WordEntry }
-  | { type: "USE_CHIP"; chip: "x2" | "plus10" | "plus5" }
-  | { type: "STEAL_TURN" }
-  | { type: "PAUSE" }
-  | { type: "RESUME" }
-  | { type: "NEXT_TURN" }
-  | { type: "REROLL" }
-  | { type: "RESTART"; word: WordEntry; stealTeam: number }
-  | { type: "BACK_TO_SETUP" }
-  | { type: "HYDRATE"; state: State }
 
 const STORAGE_PREFIX = "nastolka"
 const STATE_STORAGE_KEY = `${STORAGE_PREFIX}-state-v1`
@@ -220,6 +152,7 @@ const initialState: State = {
   customWords: [],
   stealTeam: -1,
   stealJustUsed: false,
+  countdownSeconds: 0,
 }
 
 function makeReducer() {
@@ -283,6 +216,67 @@ function makeReducer() {
 
       case "REVEAL_WORD": {
         return { ...state, phase: "playing", wordRevealed: true, secondsLeft: state.roundSeconds, paused: false, multiplier: 1 }
+      }
+
+      /* Отсчёт 3-2-1-Старт! перед началом раунда */
+      case "START_COUNTDOWN": {
+        return { ...state, phase: "countdown", countdownSeconds: 3 }
+      }
+
+      case "COUNTDOWN_TICK": {
+        const next = state.countdownSeconds - 1
+        // 3 → 2 → 1 → «Старт!» (0) → начало игры
+        if (next < 0) {
+          return { ...state, phase: "playing", wordRevealed: true, secondsLeft: state.roundSeconds, paused: false, multiplier: 1, countdownSeconds: 0 }
+        }
+        return { ...state, countdownSeconds: next }
+      }
+
+      case "COUNTDOWN_DONE": {
+        return { ...state, phase: "playing", wordRevealed: true, secondsLeft: state.roundSeconds, paused: false, multiplier: 1, countdownSeconds: 0 }
+      }
+
+      /* Отмена последнего раунда: откатываем очки, историю и фишки */
+      case "UNDO_ROUND": {
+        if (state.history.length === 0) return state
+        const lastEntry = state.history[state.history.length - 1]
+        // Восстанавливаем счёт команды
+        const newTeams = state.teams.map((tm, i) =>
+          i === lastEntry.team ? { ...tm, score: tm.score - lastEntry.points } : tm
+        )
+        // Возвращаемся к той же команде (чей раунд был отменён)
+        const prevTeam = lastEntry.team
+        // Убираем последнюю запись из истории
+        const newHistory = state.history.slice(0, -1)
+        // Возвращаем фишку stealTurn, если она была использована в этом раунде
+        const stealWasUsed = state.stealJustUsed && lastEntry.team === state.activeTeam
+        const updatedTeams = stealWasUsed
+          ? newTeams.map((tm, i) =>
+              i === prevTeam ? { ...tm, chips: { ...tm.chips, stealTurn: tm.chips.stealTurn + 1 } } : tm
+            )
+          : newTeams
+        return {
+          ...state,
+          teams: updatedTeams,
+          activeTeam: prevTeam,
+          phase: "ready",
+          history: newHistory,
+          currentMethod: null,
+          chosenMethodForChoice: null,
+          currentWord: null,
+          wordRevealed: false,
+          secondsLeft: state.roundSeconds,
+          lastRoundResult: null,
+          lastRoundPoints: 0,
+          lastRoundBasePoints: 0,
+          lastRoundMultiplier: 1,
+          multiplier: 1,
+          paused: false,
+          stealJustUsed: false,
+          stealTeam: stealWasUsed ? prevTeam : state.stealTeam,
+          winner: null,
+          countdownSeconds: 0,
+        }
       }
 
       case "USE_CHIP": {
@@ -592,6 +586,7 @@ function HeaderBar({
   onShowHistory,
   onShowAchievements,
   onShowMultiplayer,
+  onShowSettings,
   hasHistory,
   multiplayerStatus,
   lang,
@@ -601,6 +596,7 @@ function HeaderBar({
   onShowHistory: () => void
   onShowAchievements: () => void
   onShowMultiplayer: () => void
+  onShowSettings: () => void
   hasHistory: boolean
   multiplayerStatus: "disconnected" | "connecting" | "connected" | "error"
   lang: Lang
@@ -675,6 +671,9 @@ function HeaderBar({
           </Button>
           <Button variant="ghost" size="sm" className="size-8 p-0 sm:size-10" onClick={toggleMute} aria-label={muted ? t(lang, "unmute") : t(lang, "mute")}>
             {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+          </Button>
+          <Button variant="ghost" size="sm" className="size-8 p-0 sm:size-10" onClick={onShowSettings} aria-label={t(lang, "settingsTitle")}>
+            <Settings className="size-4" />
           </Button>
           <Button variant="ghost" size="sm" className="size-8 p-0 sm:size-10" onClick={toggle} aria-label={t(lang, "themeDark")}>
             {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
@@ -831,6 +830,7 @@ function ChipsBar({ state, dispatch }: { state: State; dispatch: (a: Action) => 
     if (chip === "x2") playChipX2()
     else if (chip === "plus10") playChipPlus10()
     else if (chip === "plus5") playChipPlus5()
+    hapticChip()
     dispatch({ type: "USE_CHIP", chip })
   }
 
@@ -1254,8 +1254,13 @@ export default function Home() {
   const [showHistory, setShowHistory] = useState(false)
   const [showAchievements, setShowAchievements] = useState(false)
   const [showMultiplayer, setShowMultiplayer] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [showGameBoard, setShowGameBoard] = useState(false)
   const [hydrated, setHydrated] = useState(false)
   const { lang, toggle: toggleLang } = useLang()
+
+  // Полноэкранные плавающие «+N» при угаданном слове
+  const [floatingScore, setFloatingScore] = useState<{ points: number; key: number; emoji: string } | null>(null)
 
   // ─── Мультиплеер ───
   const mpClientRef = useRef<MultiplayerClient | null>(null)
@@ -1275,6 +1280,15 @@ export default function Home() {
 
   // ─── Восстановление состояния из localStorage при загрузке ───
   useEffect(() => {
+    // Применяем сохранённые настройки звука и вибрации (из SettingsDialog)
+    try {
+      const s = localStorage.getItem("nastolka-sound-enabled")
+      const h = localStorage.getItem("nastolka-haptic-enabled")
+      if (s !== null) setMuted(s !== "true")
+      if (h !== null) setHapticsEnabled(h === "true")
+    } catch {
+      // ignore
+    }
     try {
       // Сначала пробуем восстановить активную игру
       const saved = localStorage.getItem(STATE_STORAGE_KEY)
@@ -1402,7 +1416,7 @@ export default function Home() {
         return
       }
       const snapshot: State = { ...state }
-      if (snapshot.phase === "rolling" || snapshot.phase === "method" || snapshot.phase === "task" || snapshot.phase === "playing") {
+      if (snapshot.phase === "rolling" || snapshot.phase === "method" || snapshot.phase === "task" || snapshot.phase === "countdown" || snapshot.phase === "playing") {
         snapshot.phase = "ready"
         snapshot.currentMethod = null
         snapshot.currentWord = null
@@ -1432,6 +1446,7 @@ export default function Home() {
   const handleRoll = useCallback(() => {
     unlockAudio()
     playDiceRoll(1400)
+    hapticRoll()
     dispatch({ type: "ROLL" })
     if (rollTimer.current) clearTimeout(rollTimer.current)
     rollTimer.current = setTimeout(() => {
@@ -1454,7 +1469,7 @@ export default function Home() {
       const target = e.target as HTMLElement
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return
       // Не срабатываем, если диалог открыт
-      if (showRules || showHistory || showAchievements || showMultiplayer) return
+      if (showRules || showHistory || showAchievements || showMultiplayer || showSettings) return
       if (isMpGuestLocked) return
 
       switch (e.key.toLowerCase()) {
@@ -1481,12 +1496,13 @@ export default function Home() {
           else if (showHistory) setShowHistory(false)
           else if (showAchievements) setShowAchievements(false)
           else if (showMultiplayer) setShowMultiplayer(false)
+          else if (showSettings) setShowSettings(false)
           break
       }
     }
     window.addEventListener("keydown", handleKey)
     return () => window.removeEventListener("keydown", handleKey)
-  }, [state.phase, state.paused, showRules, showHistory, showAchievements, showMultiplayer, isMpGuestLocked])
+  }, [state.phase, state.paused, showRules, showHistory, showAchievements, showMultiplayer, showSettings, isMpGuestLocked])
 
   /* Таймер раунда + тик-звук в последние 10 секунд */
   const lastTickRef = useRef<number>(-1)
@@ -1504,8 +1520,52 @@ export default function Home() {
     if (state.secondsLeft <= 10 && state.secondsLeft > 0 && state.secondsLeft !== lastTickRef.current) {
       lastTickRef.current = state.secondsLeft
       playTick(state.secondsLeft <= 5)
+      hapticTick()
     }
   }, [state.secondsLeft, state.phase])
+
+  /* Отсчёт 3-2-1-Старт! перед началом раунда */
+  useEffect(() => {
+    if (state.phase !== "countdown") return
+    playTick(true)
+    hapticTick()
+    const id = setTimeout(() => dispatch({ type: "COUNTDOWN_TICK" }), 1000)
+    return () => clearTimeout(id)
+  }, [state.phase, state.countdownSeconds])
+
+  /* Свайпы на мобильных: вправо — угадали, влево — пропустить */
+  useEffect(() => {
+    if (state.phase !== "playing" || state.paused) return
+    let startX = 0
+    let startY = 0
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        startX = e.touches[0].clientX
+        startY = e.touches[0].clientY
+      }
+    }
+    const onEnd = (e: TouchEvent) => {
+      if (e.changedTouches.length === 0) return
+      const dx = e.changedTouches[0].clientX - startX
+      const dy = e.changedTouches[0].clientY - startY
+      // Горизонтальный свайп (больше 100px, меньше 50px вертикали)
+      if (Math.abs(dx) > 100 && Math.abs(dy) < 50) {
+        if (dx > 0) {
+          dispatch({ type: "SCORE" })
+          hapticScore()
+        } else {
+          dispatch({ type: "SKIP" })
+          hapticSkip()
+        }
+      }
+    }
+    window.addEventListener("touchstart", onStart, { passive: true })
+    window.addEventListener("touchend", onEnd, { passive: true })
+    return () => {
+      window.removeEventListener("touchstart", onStart)
+      window.removeEventListener("touchend", onEnd)
+    }
+  }, [state.phase, state.paused])
 
   /* Звук при завершении раунда */
   const lastResultRef = useRef<string>("")
@@ -1516,8 +1576,28 @@ export default function Home() {
         // За большие очки (≥10) — особый богатый звук
         if (state.lastRoundPoints >= 10) playBigScore()
         else playCorrect()
+        hapticScore()
+        // Полноэкранное «+N» с эмодзи команды
+        const team = state.teams[state.activeTeam]
+        setFloatingScore({
+          points: state.lastRoundPoints,
+          key: Date.now(),
+          emoji: team?.emoji ?? "🎯",
+        })
+        // Маленькое конфетти за каждое угаданное слово
+        confetti({
+          particleCount: 30 + Math.min(state.lastRoundPoints * 4, 60),
+          spread: 70,
+          startVelocity: 35,
+          decay: 0.92,
+          scalar: 0.9,
+          origin: { x: 0.5, y: 0.6 },
+          colors: ["#10b981", "#34d399", "#fbbf24", "#f97316", "#a78bfa"],
+          ticks: 120,
+        })
       } else {
         playSkip()
+        hapticSkip()
       }
     }
     if (state.phase !== "round_end") lastResultRef.current = ""
@@ -1525,12 +1605,30 @@ export default function Home() {
     if (state.phase === "round_end" && state.lastRoundResult === "skipped" && state.secondsLeft === 0) {
       playTimeUp()
     }
-  }, [state.phase, state.lastRoundResult, state.secondsLeft, state.lastRoundPoints])
+  }, [state.phase, state.lastRoundResult, state.secondsLeft, state.lastRoundPoints, state.activeTeam, state.teams])
+
+  /* Авто-скрытие плавающих «+N» через 2 секунды */
+  useEffect(() => {
+    if (!floatingScore) return
+    const tid = setTimeout(() => setFloatingScore(null), 2000)
+    return () => clearTimeout(tid)
+  }, [floatingScore])
+
+  /* Звук «ваш ход» при переходе в фазу ready (новый ход команды) */
+  const prevPhaseRef = useRef<Phase>(state.phase)
+  useEffect(() => {
+    // Только при переходе к "ready" из другой фазы (round_end / game_over → restart)
+    if (state.phase === "ready" && prevPhaseRef.current !== "ready") {
+      playTeamActive()
+    }
+    prevPhaseRef.current = state.phase
+  }, [state.phase])
 
   /* Конфетти + звук победы + запись в глобальную статистику */
   useEffect(() => {
     if (state.phase !== "game_over" || state.winner === null) return
     playWin()
+    hapticWin()
     // Записываем достижение
     const scoredRounds = state.history.filter((h) => h.result === "scored")
     const scored = scoredRounds.length
@@ -1589,6 +1687,7 @@ export default function Home() {
           onShowHistory={() => setShowHistory(true)}
           onShowAchievements={() => setShowAchievements(true)}
           onShowMultiplayer={() => setShowMultiplayer(true)}
+          onShowSettings={() => setShowSettings(true)}
           hasHistory={hasHistory}
           multiplayerStatus={mpStatus}
           lang={lang}
@@ -1818,13 +1917,46 @@ export default function Home() {
                           size="lg"
                           variant="default"
                           className="mt-4 w-full font-bold"
-                          onClick={() => dispatch({ type: "REVEAL_WORD" })}
+                          onClick={() => dispatch({ type: "START_COUNTDOWN" })}
                         >
                           <Eye className="mr-2 h-5 w-5" />
                           {t(lang, "showWord")}
                         </Button>
                       </div>
                     )}
+                  </div>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* ─────────── COUNTDOWN: 3-2-1-Старт! ─────────── */}
+            {state.phase === "countdown" && state.currentWord && (
+              <motion.div
+                key="countdown"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="flex w-full flex-col items-center gap-6"
+              >
+                <Card className="w-full max-w-2xl p-8 text-center shadow-xl sm:p-12">
+                  <div className="mb-4 flex items-center justify-center gap-2">
+                    <span className="text-2xl">{activeTeam.emoji}</span>
+                    <span className="font-semibold">{activeTeam.name}</span>
+                  </div>
+                  <div className="mb-6 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                    {t(lang, "getReady")}
+                  </div>
+                  <motion.div
+                    key={state.countdownSeconds}
+                    initial={{ scale: 1.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 200, damping: 10 }}
+                    className="text-9xl font-black"
+                  >
+                    {state.countdownSeconds > 0 ? state.countdownSeconds : t(lang, "goLabel")}
+                  </motion.div>
+                  <div className="mt-6 text-sm text-muted-foreground">
+                    {t(lang, "wordHiddenHint")}
                   </div>
                 </Card>
               </motion.div>
@@ -1956,7 +2088,10 @@ export default function Home() {
                     <Button
                       size="lg"
                       className="bg-emerald-500 text-white font-bold hover:bg-emerald-600"
-                      onClick={() => dispatch({ type: "SCORE" })}
+                      onClick={() => {
+                        dispatch({ type: "SCORE" })
+                        hapticScore()
+                      }}
                       disabled={state.paused}
                     >
                       <Check className="mr-2 h-5 w-5" />
@@ -1966,7 +2101,10 @@ export default function Home() {
                       size="lg"
                       variant="outline"
                       className="font-bold border-destructive/30 text-destructive hover:bg-destructive/10"
-                      onClick={() => dispatch({ type: "SKIP" })}
+                      onClick={() => {
+                        dispatch({ type: "SKIP" })
+                        hapticSkip()
+                      }}
                       disabled={state.paused}
                     >
                       <X className="mr-2 h-5 w-5" />
@@ -2087,6 +2225,18 @@ export default function Home() {
                     <ChevronRight className="mr-2 h-5 w-5" />
                     {t(lang, "passTurn")}
                   </Button>
+
+                  {/* Отмена последнего раунда (откат очков, истории и фишек) */}
+                  {state.history.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => dispatch({ type: "UNDO_ROUND" })}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      {t(lang, "undoRound")}
+                    </button>
+                  )}
                   {/* Кнопка Кража хода — только если у текущей команды есть фишка */}
                   {state.teams[state.activeTeam]?.chips.stealTurn > 0 && (
                     <Button
@@ -2129,11 +2279,50 @@ export default function Home() {
                   <p className="mt-2 text-muted-foreground">
                     {t(lang, "finalScore")} {state.teams.map((t) => t.score).join(" : ")}
                   </p>
-                  {state.history.length > 0 && (
+              {state.history.length > 0 && (
                     <p className="mt-1 text-xs text-muted-foreground">
                       {t(lang, "roundsPlayed")} {state.history.length} · {t(lang, "swapsCount")}: {state.swapsUsed}
                     </p>
                   )}
+
+                  {/* MVP — лучшее слово игры */}
+                  {(() => {
+                    const scored = state.history.filter((h) => h.result === "scored" && h.points > 0)
+                    if (scored.length === 0) return null
+                    const mvp = scored.reduce((best, cur) => (cur.points > best.points ? cur : best), scored[0])
+                    const mvpTeam = state.teams[mvp.team]
+                    if (!mvpTeam) return null
+                    const methodLabels: Record<MethodId, string> = {
+                      words: t(lang, "methodWords"),
+                      songs: t(lang, "methodSongs"),
+                      drawings: t(lang, "methodDrawings"),
+                      gestures: t(lang, "methodGestures"),
+                      choice: t(lang, "methodChoice"),
+                      reroll: t(lang, "methodReroll"),
+                    }
+                    return (
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 1 }}
+                        className="mt-4 rounded-2xl bg-gradient-to-br from-amber-400/20 via-orange-400/20 to-rose-400/20 p-4 ring-1 ring-amber-400/30"
+                      >
+                        <div className="text-xs font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                          {t(lang, "bestRound")}
+                        </div>
+                        <div className="mt-2 flex items-center justify-center gap-3">
+                          <span className="text-2xl">{mvpTeam.emoji}</span>
+                          <div className="text-center">
+                            <div className="text-xl font-black">{mvp.word}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {methodLabels[mvp.method]} · +{mvp.points} {pluralPoints(mvp.points, lang)}
+                              {mvp.multiplier > 1 && ` (×${mvp.multiplier})`}
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )
+                  })()}
 
                   <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                     <Button
@@ -2198,6 +2387,52 @@ export default function Home() {
         errorMessage={mpError}
         lang={lang}
       />
+      <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />
+
+      {/* Игровая доска (Монополия-стайл) — плавающая панель справа */}
+      {state.phase !== "setup" && state.phase !== "game_over" && (
+        <GameBoard
+          teams={state.teams}
+          targetScore={state.targetScore}
+          open={showGameBoard}
+          onToggle={() => setShowGameBoard((v) => !v)}
+          lang={lang}
+          activeTeamIdx={state.activeTeam}
+          lastRound={
+            state.lastRoundResult
+              ? {
+                  teamIdx: state.activeTeam,
+                  points: state.lastRoundPoints,
+                  result: state.lastRoundResult,
+                }
+              : null
+          }
+        />
+      )}
+
+      {/* Полноэкранные плавающие «+N» при угаданном слове */}
+      <AnimatePresence>
+        {floatingScore && (
+          <motion.div
+            key={floatingScore.key}
+            initial={{ opacity: 0, scale: 0.3, y: 0 }}
+            animate={{ opacity: 1, scale: 1, y: -80 }}
+            exit={{ opacity: 0, scale: 0.6, y: -150 }}
+            transition={{ duration: 1.8, ease: "easeOut" }}
+            className="pointer-events-none fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2"
+          >
+            <div className="flex items-center gap-3 rounded-3xl bg-gradient-to-br from-emerald-500/90 to-teal-600/90 px-6 py-4 text-white shadow-2xl ring-2 ring-white/40 backdrop-blur-md">
+              <span className="text-5xl">{floatingScore.emoji}</span>
+              <div className="flex flex-col">
+                <span className="text-6xl font-black leading-none drop-shadow-lg">+{floatingScore.points}</span>
+                <span className="text-xs font-bold uppercase tracking-widest opacity-90">
+                  {pluralPoints(floatingScore.points, lang)}
+                </span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
     </I18nContext.Provider>
   )

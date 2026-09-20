@@ -367,6 +367,35 @@ export const STRINGS = {
   },
   stealTurnButton: { ru: "🎲 Кража хода! Играем ещё раз", en: "🎲 Steal turn! Play again" },
 
+  // Игровая доска (Монополия-стайл)
+  gameBoard: { ru: "Игровая доска", en: "Game Board" },
+  startLabel: { ru: "Старт", en: "Start" },
+  finishLabel: { ru: "Финиш", en: "Finish" },
+  counterclockwise: { ru: "против часовой", en: "counterclockwise" },
+  targetLabel: { ru: "Цель", en: "Target" },
+  startToFinish: { ru: "Старт → Финиш", en: "Start → Finish" },
+  leader: { ru: "ЛИДЕР", en: "LEADER" },
+  teamsLabel: { ru: "Команды", en: "Teams" },
+
+  // Отсчёт перед раундом
+  getReady: { ru: "Приготовьтесь!", en: "Get ready!" },
+  goLabel: { ru: "Старт!", en: "Go!" },
+
+  // Отмена раунда
+  undoRound: { ru: "Отменить раунд", en: "Undo round" },
+
+  // Лучший раунд (MVP на экране победы)
+  bestRound: { ru: "Лучший раунд", en: "Best round" },
+
+  // Настройки (звук и вибрация)
+  settingsTitle: { ru: "Настройки", en: "Settings" },
+  settingsSubtitle: { ru: "Управление звуком и вибрацией", en: "Sound and vibration controls" },
+  soundLabel: { ru: "Звук", en: "Sound" },
+  soundHint: { ru: "Звуковые эффекты игры", en: "Game sound effects" },
+  vibrationLabel: { ru: "Вибрация", en: "Vibration" },
+  vibrationHint: { ru: "Тактильная отдача на телефоне", en: "Haptic feedback on phone" },
+  testSoundVibration: { ru: "Тест звука и вибрации", en: "Test sound & vibration" },
+
   // Multiplayer footer in dialog
   mpCurrentRoom: { ru: "Код комнаты:", en: "Room code:" },
 

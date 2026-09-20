@@ -7,7 +7,7 @@
 // что надёжно работает через любой прокси (Caddy, Amvera). Websocket
 // подключается потом как upgrade, если провайдер поддерживает.
 
-import type { State } from "@/app/page"
+import type { State } from "@/lib/types"
 
 export interface MultiplayerClient {
   disconnect: () => void

@@ -202,3 +202,77 @@ export function playBigScore() {
   playTone(ctx, { freq: 784, duration: 0.18, type: "triangle", volume: 0.22, startAt: 0.2 })
   playTone(ctx, { freq: 1047, duration: 0.4, type: "triangle", volume: 0.24, startAt: 0.3 })
 }
+
+/* ─────────── Звуки игровой доски ─────────── */
+
+/** Hop-звук для каждого шага фишки по доске (восходящая мелодия) */
+export function playPieceHop(step: number, _total: number) {
+  const ctx = getCtx()
+  if (!ctx) return
+  // Восходящая мелодия — чем дальше шаг, тем выше тон
+  const notes = [523, 587, 659, 698, 784, 880, 988, 1047] // C5...C6
+  const freq = notes[Math.min(step, notes.length - 1)]
+  playTone(ctx, { freq, duration: 0.07, type: "triangle", volume: 0.14 })
+}
+
+/** Активация команды — мягкий звон «твой ход» */
+export function playTeamActive() {
+  const ctx = getCtx()
+  if (!ctx) return
+  playTone(ctx, { freq: 880, duration: 0.1, type: "sine", volume: 0.12 })
+  playTone(ctx, { freq: 1320, duration: 0.15, type: "sine", volume: 0.12, startAt: 0.08 })
+}
+
+/** Звук провала (skipped) — нисходящий тон */
+export function playSkippedBuzzer() {
+  const ctx = getCtx()
+  if (!ctx) return
+  playTone(ctx, { freq: 380, duration: 0.16, type: "sawtooth", volume: 0.14, glideTo: 220 })
+}
+
+/** Звук достижения финиша фишкой (победный аккорд) */
+export function playPieceFinish() {
+  const ctx = getCtx()
+  if (!ctx) return
+  playTone(ctx, { freq: 523, duration: 0.15, type: "triangle", volume: 0.22 })
+  playTone(ctx, { freq: 659, duration: 0.15, type: "triangle", volume: 0.22, startAt: 0.08 })
+  playTone(ctx, { freq: 784, duration: 0.15, type: "triangle", volume: 0.22, startAt: 0.16 })
+  playTone(ctx, { freq: 1047, duration: 0.5, type: "triangle", volume: 0.26, startAt: 0.24 })
+}
+
+/** Звук достижения вехи на доске (звон «бонус») */
+export function playMilestone() {
+  const ctx = getCtx()
+  if (!ctx) return
+  playTone(ctx, { freq: 880, duration: 0.12, type: "triangle", volume: 0.18 })
+  playTone(ctx, { freq: 1175, duration: 0.18, type: "triangle", volume: 0.2, startAt: 0.06 })
+}
+
+/* ─────────── Тактильная отдача (Vibration API) ─────────── */
+
+let hapticsEnabled = true
+
+export function setHapticsEnabled(value: boolean) {
+  hapticsEnabled = value
+}
+
+export function isHapticsEnabled() {
+  return hapticsEnabled
+}
+
+function vibrate(pattern: number | number[]) {
+  if (!hapticsEnabled) return
+  if (typeof navigator === "undefined" || !("vibrate" in navigator)) return
+  try {
+    navigator.vibrate(pattern)
+  } catch {
+    // ignore
+  }
+}
+
+export function hapticRoll() { vibrate([50, 30, 50, 30, 50]) }
+export function hapticScore() { vibrate(100) }
+export function hapticSkip() { vibrate([80, 40, 80]) }
+export function hapticChip() { vibrate(60) }
+export function hapticWin() { vibrate([100, 50, 100, 50, 200]) }
+export function hapticTick() { vibrate(20) }
