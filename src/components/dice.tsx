@@ -1,10 +1,11 @@
 "use client"
 
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { Type, Music, Brush, Hand, Sparkles, Dices, type LucideIcon } from "lucide-react"
-import type { Method, MethodId } from "@/lib/game-data"
+import type { Method } from "@/lib/game-data"
 import type { Lang } from "@/lib/i18n"
-import type { StringKey } from "@/lib/i18n"
+import { t, type StringKey } from "@/lib/i18n"
+import { DICE_FACES } from "@/lib/game-data"
 
 const ICONS: Record<string, LucideIcon> = {
   Type,
@@ -15,8 +16,13 @@ const ICONS: Record<string, LucideIcon> = {
   Dices,
 }
 
-// Локализованные ключи методов
-const METHOD_LABEL_KEYS: Record<MethodId, StringKey> = {
+const ROLLING_LABEL: Record<Lang, string> = {
+  ru: "Бросок…",
+  en: "Rolling…",
+}
+
+/** Map MethodId → i18n key for localized label */
+const METHOD_LABEL_KEY: Record<string, StringKey> = {
   words: "methodWords",
   songs: "methodSongs",
   drawings: "methodDrawings",
@@ -25,143 +31,176 @@ const METHOD_LABEL_KEYS: Record<MethodId, StringKey> = {
   reroll: "methodReroll",
 }
 
-// Импортируем t через i18n напрямую (Dice — презентационный компонент)
-import { t as translate } from "@/lib/i18n"
+/** Get localized label for a method */
+function getMethodLabel(method: Method, lang: Lang): string {
+  const key = METHOD_LABEL_KEY[method.id]
+  return key ? t(lang, key) : method.label
+}
 
 interface DiceProps {
+  /** Текущий выбранный метод (показывается после остановки) */
   method: Method | null
+  /** Находится ли кубик в состоянии броска */
   rolling: boolean
-  /**
-   * Размер грани. Число — пиксели, строка — любая CSS-величина
-   * (по умолчанию fluid: кубик уменьшается на маленьких экранах
-   * и в landscape-ориентации телефона).
-   */
-  size?: number | string
+  /** Размер в пикселях */
+  size?: number
+  /** Язык для подписи «Бросок…» */
   lang?: Lang
 }
 
 /**
- * Кубик для Настолки — большой, мягкий, мультяшный.
- * Во время броска быстро меняется лицо и трясётся корпус.
- * После остановки — крупная лицевая грань с иконкой и подписью.
+ * Настоящий 3D-кубик с 6 гранями.
+ * Использует CSS 3D transforms: perspective, preserve-3d, translateZ.
+ * Грани: front, back, right, left, top, bottom — каждая со своим методом.
+ *
+ * При броске кубик вращается по всем 3 осям (rotateX/Y/Z) с ускорением и замедлением.
+ * После остановки на front-грани показывается выбранный метод (локализованный).
  */
-export function Dice({
-  method,
-  rolling,
-  size = "min(220px, 62vw, 34svh)",
-  lang = "ru",
-}: DiceProps) {
-  // Используем упрощённый 2D-кубик: большая грань с иконкой + эффект тени
-  const Icon = method ? ICONS[method.icon] ?? Dices : Dices
-  const gradient = method
-    ? `bg-linear-to-br ${method.gradient}`
-    : "bg-linear-to-br from-slate-400 to-slate-600"
-  const px = typeof size === "number" ? `${size}px` : size
-  // Все внутренние размеры считаются от --dice, поэтому кубик масштабируется целиком
-  const boxStyle = { "--dice": px } as React.CSSProperties
+export function Dice({ method, rolling, size = 220, lang = "en" }: DiceProps) {
+  const half = size / 2
+  const faces = DICE_FACES
+
+  // Все 6 граней: front, back, right, left, top, bottom
+  const faceTransforms = [
+    { transform: `translateZ(${half}px)`, name: "front" },          // front
+    { transform: `rotateY(180deg) translateZ(${half}px)`, name: "back" },
+    { transform: `rotateY(90deg) translateZ(${half}px)`, name: "right" },
+    { transform: `rotateY(-90deg) translateZ(${half}px)`, name: "left" },
+    { transform: `rotateX(90deg) translateZ(${half}px)`, name: "top" },
+    { transform: `rotateX(-90deg) translateZ(${half}px)`, name: "bottom" },
+  ]
 
   return (
     <div
-      className="relative flex shrink-0 items-center justify-center"
-      style={{ ...boxStyle, width: "var(--dice)", height: "var(--dice)" }}
+      className="relative flex items-center justify-center"
+      style={{ width: size, height: size, perspective: 1200 }}
     >
       {/* Тень под кубиком */}
       <motion.div
-        className="absolute left-1/2 -translate-x-1/2 rounded-full bg-black/25 blur-xl"
-        animate={rolling ? { width: "70%", height: 14, opacity: 0.4 } : { width: "55%", height: 18, opacity: 0.55 }}
-        transition={{ duration: 0.15, ease: "easeOut" }}
-        style={{ bottom: "calc(var(--dice) * -0.07)" }}
+        className="absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full bg-black/30 blur-xl pointer-events-none"
+        animate={rolling ? { width: size * 0.7, height: 14, opacity: 0.5, scale: [1, 0.85, 1.15, 0.9, 1] } : { width: size * 0.55, height: 18, opacity: 0.6 }}
+        transition={{ duration: 0.5, ease: "easeOut", repeat: rolling ? Infinity : 0 }}
+        style={{ bottom: -20 }}
       />
 
-      {/* Корпус кубика */}
+      {/* Glow вокруг кубика при rolling */}
+      <AnimatePresence>
+        {rolling && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: [0.4, 0.8, 0.4], scale: [1, 1.1, 1] }}
+            exit={{ opacity: 0, scale: 1 }}
+            transition={{ duration: 0.5, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute inset-0 rounded-3xl pointer-events-none"
+            style={{
+              boxShadow: `0 0 ${size * 0.3}px rgba(168,85,247,0.7)`,
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 3D-куб — вращается в 3D-пространстве */}
       <motion.div
-        className="relative grid place-items-center rounded-3xl shadow-2xl"
-        style={{ width: "var(--dice)", height: "var(--dice)" }}
+        className="relative"
+        style={{
+          width: size,
+          height: size,
+          transformStyle: "preserve-3d",
+        }}
         animate={
           rolling
             ? {
-                x: [0, -8, 8, -6, 6, -4, 0],
-                y: [0, -10, 6, -8, 4, -2, 0],
-                rotate: [0, -8, 12, -10, 8, -4, 0],
+                // Быстрое 3D-вращение по всем 3 осям
+                rotateX: [0, 180, 540, 900, 1260, 1620, 1800],
+                rotateY: [0, 360, 720, 1080, 1440, 1620, 1800],
+                rotateZ: [0, -90, 180, -270, 360, -180, 0],
+                scale: [1, 0.95, 1.05, 0.98, 1.02, 0.99, 1],
+                y: [0, -10, 0, -8, 0, -4, 0],
               }
-            : { x: 0, y: 0, rotate: 0 }
+            : {
+                // После остановки — поворот к front-грани + финальный bounce
+                rotateX: 0,
+                rotateY: 0,
+                rotateZ: 0,
+                scale: [1.15, 0.95, 1.05, 1],
+                y: [0, -12, 0],
+              }
         }
         transition={
           rolling
-            ? { duration: 1.4, ease: "easeInOut", repeat: Infinity }
-            : { duration: 0.4, ease: "easeOut" }
+            ? { duration: 1.5, ease: [0.4, 0, 0.6, 1], repeat: Infinity }
+            : { duration: 0.8, ease: [0.34, 1.56, 0.64, 1] }
         }
       >
-        {/* Блик-внутренняя рамка */}
-        <div
-          className={`absolute inset-0 rounded-3xl ${gradient} ring-4 ring-white/40`}
-        />
-        <div className="absolute inset-2 rounded-2xl bg-white/10 ring-1 ring-white/30" />
+        {/* 6 граней кубика */}
+        {faces.map((face, idx) => {
+          const Icon = ICONS[face.icon] ?? Dices
+          const transform = faceTransforms[idx].transform
+          // Front-грань — показываем method (если есть), иначе дефолтную
+          const isFront = idx === 0
+          const faceMethod = isFront && method ? method : face
+          const gradient = `bg-gradient-to-br ${faceMethod.gradient}`
 
-        {/* Быстро меняющаяся грань во время броска */}
-        {rolling && <RollingFaces />}
-
-        {/* Финальная грань */}
-        {!rolling && (
-          <motion.div
-            key={method?.id ?? "empty"}
-            initial={{ scale: 0.6, opacity: 0, rotateY: -90 }}
-            animate={{ scale: 1, opacity: 1, rotateY: 0 }}
-            transition={{ type: "spring", stiffness: 220, damping: 18 }}
-            className="relative z-10 flex flex-col items-center gap-2 px-[8%] text-center"
-          >
-            <Icon
-              className="text-white drop-shadow-lg"
+          return (
+            <div
+              key={idx}
+              className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl shadow-2xl"
               style={{
-                width: "calc(var(--dice) * 0.34)",
-                height: "calc(var(--dice) * 0.34)",
+                transform,
+                backfaceVisibility: "hidden",
+                WebkitBackfaceVisibility: "hidden",
               }}
-              strokeWidth={2.4}
-            />
-            <span
-              className="font-extrabold uppercase tracking-wide text-white drop-shadow-md"
-              style={{ fontSize: "calc(var(--dice) * 0.11)" }}
             >
-              {method ? translate(lang, METHOD_LABEL_KEYS[method.id]) : "—"}
-            </span>
+              {/* Бэкграунд грани */}
+              <div className={`absolute inset-0 rounded-2xl ${gradient} ring-2 ring-white/40`} />
+              {/* Внутренний блик */}
+              <div className="absolute inset-2 rounded-xl bg-white/15 ring-1 ring-white/30" />
+              {/* Верхний блик */}
+              <div
+                className="absolute inset-0 rounded-2xl opacity-50"
+                style={{
+                  background: "linear-gradient(180deg, rgba(255,255,255,0.4) 0%, transparent 50%, rgba(0,0,0,0.15) 100%)",
+                }}
+              />
+
+              {/* Контент грани — иконка + локализованный label */}
+              <div className="relative z-10 flex flex-col items-center gap-2 px-4 text-center">
+                <Icon
+                  className="text-white drop-shadow-lg"
+                  style={{ width: size * 0.32, height: size * 0.32 }}
+                  strokeWidth={2.4}
+                />
+                <span
+                  className="font-extrabold uppercase tracking-wide text-white drop-shadow-md"
+                  style={{ fontSize: size * 0.1 }}
+                >
+                  {getMethodLabel(faceMethod, lang)}
+                </span>
+              </div>
+
+              {/* Точечки в углах — стилизация под кубик */}
+              <div className="pointer-events-none absolute left-2.5 top-2.5 h-2 w-2 rounded-full bg-white/70" />
+              <div className="pointer-events-none absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-white/70" />
+              <div className="pointer-events-none absolute bottom-2.5 left-2.5 h-2 w-2 rounded-full bg-white/70" />
+              <div className="pointer-events-none absolute bottom-2.5 right-2.5 h-2 w-2 rounded-full bg-white/70" />
+            </div>
+          )
+        })}
+      </motion.div>
+
+      {/* Подпись «Бросок…» под кубиком во время броска */}
+      <AnimatePresence>
+        {rolling && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute left-1/2 top-full mt-4 -translate-x-1/2 text-xs font-bold uppercase tracking-widest text-violet-600 dark:text-violet-400"
+          >
+            {ROLLING_LABEL[lang]}
           </motion.div>
         )}
-
-        {/* Точечки в углах — стилизация под кубик */}
-        <div className="pointer-events-none absolute left-[6%] top-[6%] h-[5%] w-[5%] rounded-full bg-white/60" />
-        <div className="pointer-events-none absolute right-[6%] top-[6%] h-[5%] w-[5%] rounded-full bg-white/60" />
-        <div className="pointer-events-none absolute bottom-[6%] left-[6%] h-[5%] w-[5%] rounded-full bg-white/60" />
-        <div className="pointer-events-none absolute bottom-[6%] right-[6%] h-[5%] w-[5%] rounded-full bg-white/60" />
-      </motion.div>
+      </AnimatePresence>
     </div>
-  )
-}
-
-/** Перебор граней во время броска */
-function RollingFaces() {
-  return (
-    <motion.div
-      className="absolute inset-0 grid place-items-center"
-      initial={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-    >
-      <motion.div
-        animate={{ opacity: [0.4, 1, 0.4] }}
-        transition={{ duration: 0.18, repeat: Infinity, ease: "easeInOut" }}
-        className="flex flex-col items-center gap-2"
-      >
-        <Dices
-          className="text-white/80"
-          style={{
-            width: "calc(var(--dice) * 0.32)",
-            height: "calc(var(--dice) * 0.32)",
-          }}
-          strokeWidth={2.2}
-        />
-        <span className="text-xs font-bold uppercase tracking-widest text-white/80">
-          Бросок…
-        </span>
-      </motion.div>
-    </motion.div>
   )
 }

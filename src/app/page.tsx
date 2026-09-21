@@ -128,8 +128,8 @@ const SETTINGS_STORAGE_KEY = `${STORAGE_PREFIX}-settings-v1`
 const initialState: State = {
   phase: "setup",
   teams: [
-    { name: "Команда А", color: "from-rose-500 to-pink-600", textOnColor: "text-white", emoji: "🦊", score: 0, chips: initialChips() },
-    { name: "Команда Б", color: "from-emerald-500 to-teal-600", textOnColor: "text-white", emoji: "🐻", score: 0, chips: initialChips() },
+    { name: "Team A", color: "from-rose-500 to-pink-600", textOnColor: "text-white", emoji: "🦊", score: 0, chips: initialChips() },
+    { name: "Team B", color: "from-emerald-500 to-teal-600", textOnColor: "text-white", emoji: "🐻", score: 0, chips: initialChips() },
   ],
   activeTeam: 0,
   targetScore: 10,
@@ -643,16 +643,23 @@ function HeaderBar({
     <header className="safe-top safe-x w-full max-w-5xl">
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 sm:gap-x-4">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-linear-to-br from-rose-500 via-amber-400 to-emerald-500 text-white shadow-lg sm:h-12 sm:w-12">
-            <Dices className="h-5 w-5 sm:h-7 sm:w-7" strokeWidth={2.4} />
-          </div>
-          <div className="min-w-0">
-            <h1 className="truncate text-lg font-black leading-none tracking-tight sm:text-3xl">
-              {t(lang, "appName")}
-            </h1>
-            <p className="hidden text-xs text-muted-foreground sm:block sm:text-sm">
-              {t(lang, "appSubtitle")}
-            </p>
+          {/* Nastolka brand logo: red tile (rhombus) with dice dots + NASTOLKA wordmark */}
+          <div className="flex items-center gap-2">
+            <div className="nastolka-logo-tile shrink-0" aria-hidden>
+              <div className="nastolka-logo-tile-dots">
+                <span></span><span></span><span></span>
+                <span></span><span></span><span></span>
+                <span></span><span></span><span></span>
+              </div>
+            </div>
+            <div className="min-w-0">
+              <h1 className="nastolka-logo-text truncate text-lg font-black leading-none tracking-tight sm:text-3xl">
+                NAS<span className="inline-block" style={{ width: '0.4em' }}>·</span>TOLKA
+              </h1>
+              <p className="hidden text-xs text-muted-foreground sm:block sm:text-sm">
+                {t(lang, "appSubtitle")}
+              </p>
+            </div>
           </div>
         </div>
         {/* Кнопки могут переноситься на вторую строку на узких экранах —
@@ -745,8 +752,8 @@ function TeamScoreCard({
           {/* Индикатор фишек */}
           <div className="mt-2 flex flex-wrap items-center gap-1 text-[9px] font-semibold uppercase tracking-wider opacity-90 sm:gap-1.5 sm:text-[10px]">
             <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5">×2 × {team.chips.x2}</span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5">+10с × {team.chips.plus10}</span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5">+5с × {team.chips.plus5}</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5">+10s × {team.chips.plus10}</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5">+5s × {team.chips.plus5}</span>
             {team.chips.stealTurn > 0 && (
               <span className="inline-flex items-center gap-1 rounded-full bg-linear-to-r from-fuchsia-600 to-violet-700 px-1.5 py-0.5 font-bold">
                 {t("stealActivateShort")}
@@ -905,7 +912,7 @@ function ChipButton({
           ? "opacity-30 cursor-not-allowed"
           : "hover:scale-105 active:scale-95"
       } ${active ? "ring-2 ring-foreground ring-offset-2 ring-offset-card" : ""}`}
-      aria-label={`${label} — ${lang === "ru" ? "осталось" : "left"} ${count}`}
+      aria-label={`${label} — ${t(lang, "chipLeft")} ${count}`}
     >
       <span className="text-xs font-black leading-none">{label}</span>
       <span className="text-[10px] font-medium uppercase tracking-wider opacity-90">{sublabel}</span>
@@ -1021,7 +1028,7 @@ function SetupScreen({
             {visibleTeams.map((team, i) => (
               <TeamSetupCard
                 key={i}
-                label={`${t("teamA").split(" ")[0] ?? "Команда"} ${["А", "Б", "В", "Г"][i]}`}
+                label={[t("teamA"), t("teamB"), t("teamV"), t("teamG")][i] ?? ""}
                 team={team}
                 setTeam={(t) => setTeamAt(i, t)}
                 excludeColors={usedColors(i)}
@@ -1665,24 +1672,31 @@ export default function Home() {
       ["#8b5cf6", "#a78bfa"],
       ["#0ea5e9", "#38bdf8"],
     ][state.winner]
-    const end = Date.now() + 2400
-    ;(function frame() {
-      confetti({
-        particleCount: 6,
-        angle: 60,
-        spread: 70,
-        origin: { x: 0, y: 0.7 },
-        colors,
-      })
-      confetti({
-        particleCount: 6,
-        angle: 120,
-        spread: 70,
-        origin: { x: 1, y: 0.7 },
-        colors,
-      })
-      if (Date.now() < end) requestAnimationFrame(frame)
+    // Финальный «марш» — 4 фазы конфетти
+    // Фаза 1: постоянный поток с боков (3 сек)
+    const end1 = Date.now() + 3000
+    ;(function frame1() {
+      confetti({ particleCount: 8, angle: 60, spread: 70, origin: { x: 0, y: 0.7 }, colors, scalar: 1.1 })
+      confetti({ particleCount: 8, angle: 120, spread: 70, origin: { x: 1, y: 0.7 }, colors, scalar: 1.1 })
+      if (Date.now() < end1) requestAnimationFrame(frame1)
     })()
+    // Фаза 2: большой салют из центра через 0.5 сек
+    setTimeout(() => {
+      confetti({ particleCount: 120, spread: 360, startVelocity: 45, decay: 0.92, scalar: 1.4, origin: { x: 0.5, y: 0.5 }, colors })
+    }, 500)
+    // Фаза 3: золотой дождь сверху через 1.5 сек
+    setTimeout(() => {
+      confetti({ particleCount: 80, spread: 100, startVelocity: 30, decay: 0.95, scalar: 1.2, gravity: 0.8, ticks: 300, origin: { x: 0.5, y: 0 }, colors: ["#fbbf24", "#f59e0b", "#fcd34d", "#fde68a"] })
+    }, 1500)
+    // Фаза 4: финальные «звёзды» с 4 углов через 2.5 сек
+    setTimeout(() => {
+      const corners = [{ x: 0.1, y: 0.2, angle: 60 }, { x: 0.9, y: 0.2, angle: 120 }, { x: 0.1, y: 0.8, angle: 30 }, { x: 0.9, y: 0.8, angle: 150 }]
+      corners.forEach((c, i) => {
+        setTimeout(() => {
+          confetti({ particleCount: 40, angle: c.angle, spread: 60, startVelocity: 50, decay: 0.9, scalar: 1.3, origin: { x: c.x, y: c.y }, colors })
+        }, i * 100)
+      })
+    }, 2500)
   }, [state.phase, state.winner])
 
   const activeTeam = state.teams[state.activeTeam]
@@ -2089,7 +2103,7 @@ export default function Home() {
                   {/* Холст для способа Рисунком */}
                   {!state.paused && getMethodForRound(state)?.id === "drawings" && (
                     <div className="mt-4">
-                      <DrawingCanvas resetKey={state.currentWord?.word} />
+                      <DrawingCanvas resetKey={state.currentWord?.word} lang={lang} />
                     </div>
                   )}
 
@@ -2623,9 +2637,7 @@ function HistoryDialog({
                     </div>
                     <div className="mt-1 text-3xl font-black">{tm.score}</div>
                     <div className="text-xs opacity-80">
-                      {lang === "ru"
-                        ? `Угадано ${s.scored} из ${s.total} · успех ${successRate}%`
-                        : `Guessed ${s.scored} of ${s.total} · success ${successRate}%`}
+                      {t("historyGuessedOf").replace("{scored}", String(s.scored)).replace("{total}", String(s.total)).replace("{rate}", String(successRate))}
                     </div>
                   </div>
                 )

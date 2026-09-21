@@ -7,8 +7,15 @@ type Theme = "light" | "dark"
 
 const STORAGE_KEY = "nastolka-theme"
 
-function getInitialTheme(): Theme {
-  if (typeof window === "undefined") return "light"
+/**
+ * Default theme used for SSR AND the first client render.
+ * The actual saved/system theme is loaded in useEffect after hydration
+ * to prevent React hydration mismatches and avoid visual flash.
+ */
+const DEFAULT_THEME: Theme = "light"
+
+function getStoredTheme(): Theme {
+  if (typeof window === "undefined") return DEFAULT_THEME
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved === "dark" || saved === "light") return saved
@@ -16,11 +23,20 @@ function getInitialTheme(): Theme {
   } catch {
     // ignore
   }
-  return "light"
+  return DEFAULT_THEME
 }
 
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme)
+  // Always start with DEFAULT_THEME so SSR and first client render match
+  const [theme, setTheme] = useState<Theme>(DEFAULT_THEME)
+
+  // After hydration, load the actual theme from localStorage/system preference
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
+    const stored = getStoredTheme()
+    if (stored !== theme) setTheme(stored)
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [])
 
   useEffect(() => {
     const root = document.documentElement

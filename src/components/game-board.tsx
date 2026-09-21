@@ -278,7 +278,7 @@ export function GameBoard({ teams, targetScore, open, onToggle, lang, activeTeam
                 type="button"
                 onClick={onToggle}
                 className="rounded-full bg-muted p-1.5 transition hover:bg-muted/70"
-                aria-label={lang === "ru" ? "Закрыть" : "Close"}
+                aria-label={t(lang, "closeLabel")}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -529,7 +529,7 @@ export function GameBoard({ teams, targetScore, open, onToggle, lang, activeTeam
                 <div className="mb-3 rounded-xl bg-muted/40 p-2.5">
                   <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                     <History className="h-3 w-3" />
-                    {lang === "ru" ? "Последние ходы" : "Recent moves"}
+                    {t(lang, "recentMoves")}
                   </div>
                   <div className="space-y-1">
                     <AnimatePresence>
@@ -548,7 +548,7 @@ export function GameBoard({ teams, targetScore, open, onToggle, lang, activeTeam
                           <ChevronRight className="h-3 w-3 text-muted-foreground" />
                           <span className="font-bold text-emerald-600 dark:text-emerald-400">{h.newScore}</span>
                           <span className="ml-auto text-muted-foreground">
-                            +{h.points} {lang === "ru" ? "очк." : "pts"}
+                            +{h.points} {t(lang, "ptsShort")}
                           </span>
                         </motion.div>
                       ))}

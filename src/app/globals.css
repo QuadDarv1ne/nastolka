@@ -3,6 +3,21 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ─────────────────────────── Nastolka brand colors (RUTUBE brand book) ─────────────────────────── */
+/* Source: rutube.ru/brand */
+:root {
+  /* RUTUBE brand palette */
+  --nastolka-red: #ED143B;
+  --nastolka-violet: #9A13ED;
+  --nastolka-blue: #123AED;
+  --nastolka-cyan: #12CCED;
+  --nastolka-dark: #100943;
+  --nastolka-wood: #3E2723;
+  --nastolka-cream: #F5F5F5;
+}
+
+
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -51,7 +66,8 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  /* Primary: RUTUBE red (#ED143B) */
+  --primary: oklch(0.59 0.24 27);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
@@ -79,13 +95,15 @@
 }
 
 .dark {
-  --background: oklch(0.165 0.012 320);
+  /* Background: RUTUBE Russian violet #100943 */
+  --background: oklch(0.21 0.07 280);
   --foreground: oklch(0.985 0.005 60);
   --card: oklch(0.215 0.018 320);
   --card-foreground: oklch(0.985 0.005 60);
   --popover: oklch(0.215 0.018 320);
   --popover-foreground: oklch(0.985 0.005 60);
-  --primary: oklch(0.92 0.02 320);
+  /* Primary: RUTUBE red (#ED143B) */
+  --primary: oklch(0.59 0.24 27);
   --primary-foreground: oklch(0.205 0.012 320);
   --secondary: oklch(0.28 0.018 320);
   --secondary-foreground: oklch(0.985 0.005 60);
@@ -96,7 +114,8 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0.02 320);
+  /* Ring: RUTUBE red */
+  --ring: oklch(0.59 0.24 27);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
@@ -104,7 +123,7 @@
   --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: oklch(0.205 0.018 320);
   --sidebar-foreground: oklch(0.985 0.005 60);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary: oklch(0.59 0.24 27);
   --sidebar-primary-foreground: oklch(0.985 0.005 60);
   --sidebar-accent: oklch(0.269 0.018 320);
   --sidebar-accent-foreground: oklch(0.985 0.005 60);
@@ -310,4 +329,111 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ─────────────────────────── Nastolka brand styling ─────────────────────────── */
+
+/* Logo container — block letters with 3D bevel look */
+.nastolka-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+/* 3D bevel effect on logo text */
+.nastolka-logo-text {
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.2),
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    0 4px 8px rgba(237, 20, 59, 0.15);
+}
+
+/* Center tile (red rhombus) */
+.nastolka-logo-tile {
+  display: inline-grid;
+  place-items: center;
+  width: 1.6em;
+  height: 1.6em;
+  background: linear-gradient(135deg, #ED143B 0%, #C30F30 100%);
+  border: 2px solid #FFFFFF;
+  border-radius: 0.32em;
+  transform: rotate(-12deg);
+  box-shadow:
+    0 2px 6px rgba(237, 20, 59, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: transform 0.3s ease;
+}
+
+.nastolka-logo-tile:hover {
+  transform: rotate(-12deg) scale(1.1);
+}
+
+/* Dice dots on the tile */
+.nastolka-logo-tile-dots {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 0.12em;
+  width: 70%;
+  height: 70%;
+}
+
+.nastolka-logo-tile-dots span {
+  background: #FFFFFF;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Pattern: 5 dots (1, 3, 5, 7, 9 positions filled) */
+.nastolka-logo-tile-dots span:nth-child(1),
+.nastolka-logo-tile-dots span:nth-child(3),
+.nastolka-logo-tile-dots span:nth-child(5),
+.nastolka-logo-tile-dots span:nth-child(7),
+.nastolka-logo-tile-dots span:nth-child(9) {
+  visibility: visible;
+}
+
+.nastolka-logo-tile-dots span:nth-child(2),
+.nastolka-logo-tile-dots span:nth-child(4),
+.nastolka-logo-tile-dots span:nth-child(6),
+.nastolka-logo-tile-dots span:nth-child(8) {
+  visibility: hidden;
+}
+
+/* Brand color dots */
+.nastolka-brand-dots {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-left: 0.5rem;
+}
+
+.nastolka-brand-dots span {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.nastolka-brand-dots span:nth-child(1) { background: #ED143B; }
+.nastolka-brand-dots span:nth-child(2) { background: #123AED; }
+.nastolka-brand-dots span:nth-child(3) { background: #9A13ED; }
+.nastolka-brand-dots span:nth-child(4) { background: #12CCED; }
+
+/* Gradient brand background for hero areas */
+.nastolka-gradient-bg {
+  background:
+    radial-gradient(circle at 20% 30%, rgba(237, 20, 59, 0.12) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(18, 58, 237, 0.12) 0%, transparent 50%),
+    radial-gradient(circle at 50% 100%, rgba(154, 19, 237, 0.08) 0%, transparent 60%);
+}
+
+.dark .nastolka-gradient-bg {
+  background:
+    radial-gradient(circle at 20% 30%, rgba(237, 20, 59, 0.18) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(18, 58, 237, 0.18) 0%, transparent 50%),
+    radial-gradient(circle at 50% 100%, rgba(154, 19, 237, 0.12) 0%, transparent 60%);
 }

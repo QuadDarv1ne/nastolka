@@ -5,8 +5,16 @@ export type Lang = "ru" | "en"
 
 const LANG_STORAGE_KEY = "nastolka-lang-v1"
 
+/**
+ * Default language used for both server-side rendering AND the first client render.
+ * Reading from localStorage happens only AFTER hydration, in a useEffect,
+ * so that server-rendered HTML and the first client render always match —
+ * preventing React hydration mismatches.
+ */
+export const DEFAULT_LANG: Lang = "ru"
+
 export function getInitialLang(): Lang {
-  if (typeof window === "undefined") return "ru"
+  if (typeof window === "undefined") return DEFAULT_LANG
   try {
     const saved = localStorage.getItem(LANG_STORAGE_KEY)
     if (saved === "ru" || saved === "en") return saved
@@ -15,7 +23,7 @@ export function getInitialLang(): Lang {
   } catch {
     // ignore
   }
-  return "ru"
+  return DEFAULT_LANG
 }
 
 export function saveLang(lang: Lang) {
@@ -31,6 +39,24 @@ export function saveLang(lang: Lang) {
 export const STRINGS = {
   // Шапка и общие
   appName: { ru: "Настолка", en: "Nastolka" },
+  // Drawing canvas
+  clearCanvas: { ru: "Очистить", en: "Clear" },
+  drawWithFinger: { ru: "рисуй пальцем", en: "draw with finger" },
+  colorLabel: { ru: "Цвет", en: "Color" },
+  thinBrush: { ru: "Тонкая кисть", en: "Thin brush" },
+  mediumBrush: { ru: "Средняя кисть", en: "Medium brush" },
+  thickBrush: { ru: "Толстая кисть", en: "Thick brush" },
+  // Game board
+  closeLabel: { ru: "Закрыть", en: "Close" },
+  recentMoves: { ru: "Последние ходы", en: "Recent moves" },
+  ptsShort: { ru: "очк.", en: "pts" },
+  // Multiplayer dialog
+  mpInRoom: { ru: "в комнате", en: "in room" },
+  mpRoomCode: { ru: "Код комнаты", en: "Room code" },
+  // Chips
+  chipLeft: { ru: "осталось", en: "left" },
+  // History stats (с шаблонами {scored}, {total}, {rate})
+  historyGuessedOf: { ru: "Угадано {scored} из {total} · успех {rate}%", en: "Guessed {scored} of {total} · success {rate}%" },
   appSubtitle: { ru: "Версия настольной игры из шоу Шальнова и Бебуришвили", en: "Board game from Shalnov & Beburishvili show" },
   rules: { ru: "Правила", en: "Rules" },
   history: { ru: "История", en: "History" },
@@ -129,7 +155,6 @@ export const STRINGS = {
   pointsSuffix2: { ru: "очков", en: "points" }, // 5+, 0
   pointsSuffix1: { ru: "очко", en: "point" },   // 1
   explainByMethod: { ru: "Объясни способом", en: "Explain using" },
-  drawWithFinger: { ru: "рисуй пальцем", en: "draw with finger" },
   clear: { ru: "Очистить", en: "Clear" },
   scoredResultHint: {
     ru: "Угадали — жми Угадали!, не получается — Пропустить (очки не идут).",
@@ -289,7 +314,6 @@ export const STRINGS = {
   mpConnected: { ru: "Подключено", en: "Connected" },
   mpPlayers: { ru: "игрока", en: "players" },
   mpPlayer: { ru: "игрок", en: "player" },
-  mpRoomCode: { ru: "Код комнаты:", en: "Room code:" },
   mpCreateRoom: { ru: "Создать комнату", en: "Create room" },
   mpJoinByCode: { ru: "Присоединиться по коду", en: "Join by code" },
   mpInfo: {
@@ -428,7 +452,6 @@ export const STRINGS = {
 
   // Мелкие подписи фишек
   chipDouble: { ru: "удвоить", en: "double" },
-  chipLeft: { ru: "осталось", en: "left" },
 
   // Ручной адрес сервера мультиплеера
   mpAdvanced: { ru: "Дополнительно", en: "Advanced" },

@@ -140,7 +140,7 @@ export function MultiplayerDialog({
             </div>
             <div className="text-sm text-muted-foreground">
               <Users className="mr-1 inline h-4 w-4" />
-              {members} {members === 1 ? t(lang, "mpPlayer") : t(lang, "mpPlayers")} {lang === "ru" ? "в комнате" : "in room"}
+              {members} {members === 1 ? t(lang, "mpPlayer") : t(lang, "mpPlayers")} {t(lang, "mpInRoom")}
             </div>
             {createdCode && (
               <div className="mt-3 text-sm">
@@ -303,7 +303,7 @@ export function MultiplayerDialog({
           <div className="space-y-3 text-center">
             <div className="rounded-2xl bg-linear-to-br from-amber-400 to-orange-500 p-6 text-white">
               <div className="text-xs font-semibold uppercase tracking-widest opacity-90">
-                {lang === "ru" ? "Код комнаты" : "Room code"}
+                {t(lang, "mpRoomCode")}
               </div>
               <div className="my-2 text-5xl font-black tracking-[0.3em] tabular-nums">
                 {createdCode}

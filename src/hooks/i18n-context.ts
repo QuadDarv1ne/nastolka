@@ -11,6 +11,9 @@ interface I18nContextValue {
   t: (key: StringKey) => string
 }
 
+// Default to "ru" (DEFAULT_LANG) so server-rendered HTML matches the first client render.
+// The actual saved language is loaded in useLang() AFTER hydration via useEffect,
+// preventing React hydration mismatches.
 export const I18nContext = createContext<I18nContextValue>({
   lang: "ru",
   t: (key) => translate("ru", key),
