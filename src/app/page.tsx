@@ -128,8 +128,8 @@ const SETTINGS_STORAGE_KEY = `${STORAGE_PREFIX}-settings-v1`
 const initialState: State = {
   phase: "setup",
   teams: [
-    { name: "Team A", color: "from-rose-500 to-pink-600", textOnColor: "text-white", emoji: "🦊", score: 0, chips: initialChips() },
-    { name: "Team B", color: "from-emerald-500 to-teal-600", textOnColor: "text-white", emoji: "🐻", score: 0, chips: initialChips() },
+    { name: "Команда А", color: "from-rose-500 to-pink-600", textOnColor: "text-white", emoji: "🦊", score: 0, chips: initialChips() },
+    { name: "Команда Б", color: "from-emerald-500 to-teal-600", textOnColor: "text-white", emoji: "🐻", score: 0, chips: initialChips() },
   ],
   activeTeam: 0,
   targetScore: 10,
@@ -644,22 +644,20 @@ function HeaderBar({
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 sm:gap-x-4">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           {/* Nastolka brand logo: red tile (rhombus) with dice dots + NASTOLKA wordmark */}
-          <div className="flex items-center gap-2">
-            <div className="nastolka-logo-tile shrink-0" aria-hidden>
-              <div className="nastolka-logo-tile-dots">
-                <span></span><span></span><span></span>
-                <span></span><span></span><span></span>
-                <span></span><span></span><span></span>
-              </div>
+          <div className="nastolka-logo-tile shrink-0" aria-hidden>
+            <div className="nastolka-logo-tile-dots">
+              <span></span><span></span><span></span>
+              <span></span><span></span><span></span>
+              <span></span><span></span><span></span>
             </div>
-            <div className="min-w-0">
-              <h1 className="nastolka-logo-text truncate text-lg font-black leading-none tracking-tight sm:text-3xl">
-                NAS<span className="inline-block" style={{ width: '0.4em' }}>·</span>TOLKA
-              </h1>
-              <p className="hidden text-xs text-muted-foreground sm:block sm:text-sm">
-                {t(lang, "appSubtitle")}
-              </p>
-            </div>
+          </div>
+          <div className="min-w-0">
+            <h1 className="nastolka-logo-text truncate text-lg font-black leading-none tracking-tight sm:text-3xl">
+              NAS<span className="inline-block" style={{ width: '0.4em' }}>·</span>TOLKA
+            </h1>
+            <p className="hidden text-xs text-muted-foreground sm:block sm:text-sm">
+              {t(lang, "appSubtitle")}
+            </p>
           </div>
         </div>
         {/* Кнопки могут переноситься на вторую строку на узких экранах —
@@ -2523,6 +2521,7 @@ export default function Home() {
 function Timer({ secondsLeft, total, paused = false }: { secondsLeft: number; total: number; paused?: boolean }) {
   const { t, lang } = useI18n()
   const danger = secondsLeft <= 10
+  const critical = secondsLeft <= 5
   const pct = (secondsLeft / total) * 100
   return (
     <div className="min-w-0 flex-1">
@@ -2531,9 +2530,13 @@ function Timer({ secondsLeft, total, paused = false }: { secondsLeft: number; to
           <Clock className={`h-4 w-4 shrink-0 ${paused ? "" : "animate-pulse"}`} />
           <span className="truncate">{paused ? t("pause") : t("time")}</span>
         </div>
-        <div className={`shrink-0 font-mono text-base font-black tabular-nums sm:text-lg ${danger && !paused ? "text-rose-500" : ""} ${paused ? "text-muted-foreground" : ""}`}>
+        <motion.div
+          className={`shrink-0 font-mono text-base font-black tabular-nums sm:text-lg ${critical && !paused ? "text-rose-500" : danger && !paused ? "text-amber-500" : ""} ${paused ? "text-muted-foreground" : ""}`}
+          animate={critical && !paused ? { scale: [1, 1.25, 1], opacity: [1, 0.7, 1] } : { scale: 1, opacity: 1 }}
+          transition={critical ? { duration: 0.5, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
+        >
           {secondsLeft} {t("secShort")}
-        </div>
+        </motion.div>
       </div>
       <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
         <motion.div
