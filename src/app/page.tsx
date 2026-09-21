@@ -1298,6 +1298,8 @@ function TeamSetupCard({
 export default function Home() {
   const reducer = useMemo(() => makeReducer(), [])
   const [state, dispatch] = useReducer(reducer, initialState)
+  const stateRef = useRef(state)
+  stateRef.current = state
   const [showRules, setShowRules] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [showAchievements, setShowAchievements] = useState(false)
@@ -1424,7 +1426,7 @@ export default function Home() {
       // Слушаем запросы состояния от новых участников
       client.on('state-requested', (payload) => {
         // Отправляем наше состояние новому участнику
-        client.sendStateTo(payload.from, state)
+        client.sendStateTo(payload.from, stateRef.current)
       })
       client.on('peer-joined', (payload) => setMpMembers(payload.members))
       client.on('peer-left', (payload) => setMpMembers(payload.members))
@@ -1433,7 +1435,7 @@ export default function Home() {
         setTimeout(() => client.requestState(), 500)
       }
     },
-    [state],
+    [],
   )
 
   // ─── Мультиплеер: отправляем наше состояние при каждом изменении ───
