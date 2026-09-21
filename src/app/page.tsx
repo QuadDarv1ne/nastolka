@@ -756,8 +756,8 @@ function TeamScoreCard({
               transition={{ type: "spring", stiffness: 120, damping: 20 }}
             />
           </div>
-          {/* Индикатор фишек */}
-          <div className="mt-2 flex flex-wrap items-center gap-1 text-[9px] font-semibold uppercase tracking-wider opacity-90 sm:gap-1.5 sm:text-[10px]">
+          {/* Индикатор фишек (скрывается на коротких landscape-экранах) */}
+          <div className="team-card-chips mt-2 flex flex-wrap items-center gap-1 text-[9px] font-semibold uppercase tracking-wider opacity-90 sm:gap-1.5 sm:text-[10px]">
             <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5">×2 × {team.chips.x2}</span>
             <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5">+10s × {team.chips.plus10}</span>
             <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5">+5s × {team.chips.plus5}</span>
@@ -1784,7 +1784,7 @@ export default function Home() {
           )}
         </AnimatePresence>
 
-        <main className="safe-x flex w-full max-w-5xl flex-1 flex-col items-center justify-center py-5 sm:py-8">
+        <main className="main-stage safe-x flex w-full max-w-5xl flex-1 flex-col items-center justify-center py-5 sm:py-8">
           <AnimatePresence mode="wait">
             {/* ─────────── SETUP ─────────── */}
             {state.phase === "setup" && (
@@ -2017,7 +2017,7 @@ export default function Home() {
                     initial={{ scale: 1.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: "spring", stiffness: 200, damping: 10 }}
-                    className="text-9xl font-black"
+                    className="text-7xl font-black sm:text-9xl"
                   >
                     {state.countdownSeconds > 0 ? state.countdownSeconds : t(lang, "goLabel")}
                   </motion.div>
@@ -2035,7 +2035,7 @@ export default function Home() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -16 }}
-                className="flex w-full flex-col items-center gap-6"
+                className="flex w-full flex-col items-center gap-4 sm:gap-6"
               >
                 <TeamGrid
                   teams={state.teams}
@@ -2093,7 +2093,7 @@ export default function Home() {
                   </AnimatePresence>
 
                   {!state.paused && (
-                    <div className="mt-6 rounded-3xl bg-linear-to-br from-amber-50 to-rose-50 p-6 text-center dark:from-amber-950/30 dark:to-rose-950/30">
+                    <div className="mt-4 rounded-3xl bg-linear-to-br from-amber-50 to-rose-50 p-4 text-center dark:from-amber-950/30 dark:to-rose-950/30 sm:mt-6 sm:p-6">
                       <div className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                         <span>{categoryLabel(lang, state.currentWord.category)}</span>
                         {state.currentWord.difficulty && (
@@ -2150,10 +2150,10 @@ export default function Home() {
                   {/* Фишки команды (×2, +10 сек, +5 сек) */}
                   {!state.paused && <ChipsBar state={state} dispatch={dispatch} />}
 
-                  <div className="mt-6 grid grid-cols-2 gap-3">
+                  <div className="mt-4 grid grid-cols-2 gap-3 sm:mt-6">
                     <Button
                       size="lg"
-                      className="bg-emerald-500 text-white font-bold hover:bg-emerald-600"
+                      className="min-h-12 bg-emerald-500 text-white font-bold hover:bg-emerald-600"
                       onClick={() => {
                         dispatch({ type: "SCORE" })
                         hapticScore()
@@ -2165,8 +2165,8 @@ export default function Home() {
                     </Button>
                     <Button
                       size="lg"
+                      className="min-h-12 font-bold border-destructive/30 text-destructive hover:bg-destructive/10"
                       variant="outline"
-                      className="font-bold border-destructive/30 text-destructive hover:bg-destructive/10"
                       onClick={() => {
                         dispatch({ type: "SKIP" })
                         hapticSkip()

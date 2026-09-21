@@ -331,6 +331,40 @@
   }
 }
 
+/* ─────────────── Телефон в landscape (короткий экран ≤540px) ───────────────
+   В горизонтальной ориентации вертикального пространства мало: карточки
+   команд и панели сжимаются, декоративный фон отключается, чтобы игровой
+   экран (карточки + слово + кнопки) умещался без прокрутки. */
+@media (max-height: 540px) and (orientation: landscape) {
+  .bubble {
+    display: none;
+  }
+  .main-stage {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  .team-grid {
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+  .team-card-inner {
+    padding: 0.5rem 0.75rem;
+  }
+  .team-card-emoji {
+    font-size: 1.6rem;
+  }
+  .team-card-score {
+    font-size: 1.4rem;
+  }
+  /* Фишки-бейджи в карточке команды не критичны на коротком экране */
+  .team-card-chips {
+    display: none;
+  }
+  .word-display {
+    font-size: clamp(1.3rem, 6vh, 2rem);
+  }
+}
+
 /* ─────────────────────────── Nastolka brand styling ─────────────────────────── */
 
 /* Лёгкое парение плитки логотипа (сохраняет наклон -12°) */
