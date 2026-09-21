@@ -83,6 +83,7 @@ const generateRoomCode = () => {
 const leaveRoom = (socketId: string, notify = true) => {
   const room = socketToRoom.get(socketId)
   if (!room) return
+  io.sockets.sockets.get(socketId)?.leave(room)
   const members = rooms.get(room)
   if (members) {
     members.delete(socketId)
