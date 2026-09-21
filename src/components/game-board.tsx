@@ -247,6 +247,20 @@ export function GameBoard({ teams, targetScore, open, onToggle, lang, activeTeam
   // Клетка-лидер — где находится ведущая команда (если счёт > 0)
   const leaderCellIdx = maxScore > 0 ? Math.min(maxScore, targetScore) : -1
 
+  /* Занятость клеток: какие команды стоят на каждой клетке.
+     Если на одной клетке несколько фишек — раскладываем их кластером,
+     а не друг на друге. */
+  const cellOccupancy = useMemo(() => {
+    const map = new Map<number, number[]>()
+    teams.forEach((team, idx) => {
+      const cs = Math.min(team.score, targetScore)
+      const arr = map.get(cs) ?? []
+      arr.push(idx)
+      map.set(cs, arr)
+    })
+    return map
+  }, [teams, targetScore])
+
   return (
     <>
       {/* Кнопка-переключатель — плавающая справа */}
@@ -443,11 +457,23 @@ export function GameBoard({ teams, targetScore, open, onToggle, lang, activeTeam
                   {cellSize > 0 && teams.map((team, idx) => {
                     const cellScore = Math.min(team.score, targetScore)
                     const cellPos = perimeterPositions[cellScore]
-                    // X = cellPad + col * cellStride + cellSize/2 - pieceSize/2
-                    // Y = cellPad + row * cellStride + cellSize/2 - pieceSize/2
-                    // cellPad = 3px (padding доски), cellStride = cellSize + gap(2px)
-                    const targetX = cellPad + cellPos.col * cellStride + cellSize / 2 - pieceSize / 2
-                    const targetY = cellPad + cellPos.row * cellStride + cellSize / 2 - pieceSize / 2
+                    // Кластер: если на клетке несколько фишек — раскладываем по кругу
+                    const occupants = cellOccupancy.get(cellScore) ?? [idx]
+                    const j = occupants.indexOf(idx)
+                    const k = occupants.length
+                    // При скоплении фишки чуть уменьшаем, чтобы кластер читался
+                    const effSize = k >= 3 ? pieceSize * 0.78 : k === 2 ? pieceSize * 0.9 : pieceSize
+                    let ox = 0
+                    let oy = 0
+                    if (k > 1) {
+                      const angle = (2 * Math.PI * j) / k - Math.PI / 2
+                      const r = effSize * 0.38
+                      ox = Math.cos(angle) * r
+                      oy = Math.sin(angle) * r
+                    }
+                    // X = cellPad + col * cellStride + cellSize/2 - effSize/2 (+ смещение кластера)
+                    const targetX = cellPad + cellPos.col * cellStride + cellSize / 2 - effSize / 2 + ox
+                    const targetY = cellPad + cellPos.row * cellStride + cellSize / 2 - effSize / 2 + oy
                     const isActive = activeTeamIdx === idx
                     const isAnimating = animatingPiece?.teamIdx === idx
 
@@ -465,7 +491,7 @@ export function GameBoard({ teams, targetScore, open, onToggle, lang, activeTeam
                               }
                             : { type: "spring", stiffness: 200, damping: 22 }
                         }
-                        style={{ top: 0, left: 0, width: pieceSize, height: pieceSize }}
+                        style={{ top: 0, left: 0, width: effSize, height: effSize }}
                       >
                         {/* Свечение под активной фишкой */}
                         {isActive && (
@@ -489,7 +515,7 @@ export function GameBoard({ teams, targetScore, open, onToggle, lang, activeTeam
                           }
                           transition={{ duration: 0.4 }}
                           style={{
-                            fontSize: pieceSize * 0.55,
+                            fontSize: effSize * 0.55,
                           }}
                         >
                           {team.emoji}

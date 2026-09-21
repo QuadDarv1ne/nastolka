@@ -333,15 +333,13 @@
 
 /* ─────────────────────────── Nastolka brand styling ─────────────────────────── */
 
-/* 3D bevel effect on logo text */
-.nastolka-logo-text {
-  text-shadow:
-    0 1px 0 rgba(0, 0, 0, 0.2),
-    0 2px 4px rgba(0, 0, 0, 0.3),
-    0 4px 8px rgba(237, 20, 59, 0.15);
+/* Лёгкое парение плитки логотипа (сохраняет наклон -12°) */
+@keyframes nastolka-tile-float {
+  0%, 100% { transform: rotate(-12deg) translateY(0); }
+  50% { transform: rotate(-10deg) translateY(-3px); }
 }
-
-/* Center tile (red rhombus) */
+/* Плитка логотипа: красный ромб с точками кубика + лёгкое парение
+   (hover-масштаб убран — transform управляется keyframes float) */
 .nastolka-logo-tile {
   display: inline-grid;
   place-items: center;
@@ -350,15 +348,27 @@
   background: linear-gradient(135deg, #ED143B 0%, #C30F30 100%);
   border: 2px solid #FFFFFF;
   border-radius: 0.32em;
-  transform: rotate(-12deg);
   box-shadow:
     0 2px 6px rgba(237, 20, 59, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  transition: transform 0.3s ease;
+  animation: nastolka-tile-float 3.5s ease-in-out infinite;
 }
 
-.nastolka-logo-tile:hover {
-  transform: rotate(-12deg) scale(1.1);
+/* Мягкая пульсация свечения кнопки «Бросить кубик» */
+@keyframes nastolka-roll-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.45); }
+  50% { box-shadow: 0 0 0 12px rgba(168, 85, 247, 0); }
+}
+.btn-roll-glow {
+  animation: nastolka-roll-glow 2s ease-out infinite;
+}
+
+/* 3D bevel effect on logo text */
+.nastolka-logo-text {
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.2),
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    0 4px 8px rgba(237, 20, 59, 0.15);
 }
 
 /* Dice dots on the tile */

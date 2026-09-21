@@ -416,6 +416,15 @@ export const STRINGS = {
   vibrationLabel: { ru: "Вибрация", en: "Vibration" },
   vibrationHint: { ru: "Тактильная отдача на телефоне", en: "Haptic feedback on phone" },
   testSoundVibration: { ru: "Тест звука и вибрации", en: "Test sound & vibration" },
+  countdownLabel: { ru: "Отсчёт 3-2-1", en: "3-2-1 countdown" },
+  countdownHint: { ru: "Обратный отсчёт перед началом раунда", en: "Countdown before each round" },
+
+  // Быстрая игра
+  quickGame: { ru: "Быстрая игра", en: "Quick game" },
+  quickGameHint: {
+    ru: "2 команды · до 10 очков · 60 сек · все категории",
+    en: "2 teams · up to 10 pts · 60 sec · all categories",
+  },
 
   // Multiplayer footer in dialog
   mpCurrentRoom: { ru: "Код комнаты:", en: "Room code:" },

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Settings, Volume2, VolumeX, Vibrate, VibrateOff } from "lucide-react"
+import { Settings, Volume2, VolumeX, Vibrate, VibrateOff, Timer, TimerOff } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
@@ -10,12 +10,23 @@ import { isMuted, setMuted, setHapticsEnabled, unlockAudio } from "@/lib/sounds"
 
 const SOUND_STORAGE = "nastolka-sound-enabled"
 const HAPTIC_STORAGE = "nastolka-haptic-enabled"
+export const COUNTDOWN_STORAGE = "nastolka-countdown-enabled"
 
-/** Диалог настроек: звуковые эффекты и тактильная отдача (вибрация) */
+/** Включён ли отсчёт 3-2-1 перед раундом (по умолчанию — да) */
+export function isCountdownEnabled(): boolean {
+  try {
+    return localStorage.getItem(COUNTDOWN_STORAGE) !== "false"
+  } catch {
+    return true
+  }
+}
+
+/** Диалог настроек: звуковые эффекты, тактильная отдача, отсчёт 3-2-1 */
 export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { t } = useI18n()
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [hapticEnabled, setHapticEnabled] = useState(true)
+  const [countdownEnabled, setCountdownEnabled] = useState(true)
 
   useEffect(() => {
     // Читаем сохранённые настройки после гидратации (setState в эффекте — намеренно,
@@ -24,8 +35,10 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
     try {
       const s = localStorage.getItem(SOUND_STORAGE)
       const h = localStorage.getItem(HAPTIC_STORAGE)
+      const c = localStorage.getItem(COUNTDOWN_STORAGE)
       if (s !== null) setSoundEnabled(s === "true")
       if (h !== null) setHapticEnabled(h === "true")
+      if (c !== null) setCountdownEnabled(c === "true")
     } catch {
       // ignore
     }
@@ -57,6 +70,15 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
       } catch {
         // ignore
       }
+    }
+  }
+
+  const toggleCountdown = (enabled: boolean) => {
+    setCountdownEnabled(enabled)
+    try {
+      localStorage.setItem(COUNTDOWN_STORAGE, String(enabled))
+    } catch {
+      // ignore
     }
   }
 
@@ -106,6 +128,24 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
               </div>
             </div>
             <Switch checked={hapticEnabled} onCheckedChange={toggleHaptic} />
+          </div>
+
+          {/* Отсчёт 3-2-1 */}
+          <div className="flex items-center justify-between rounded-2xl bg-muted/50 p-4">
+            <div className="flex items-center gap-3">
+              <div
+                className={`grid h-10 w-10 place-items-center rounded-xl ${
+                  countdownEnabled ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {countdownEnabled ? <Timer className="h-5 w-5" /> : <TimerOff className="h-5 w-5" />}
+              </div>
+              <div>
+                <div className="font-semibold">{t("countdownLabel")}</div>
+                <div className="text-xs text-muted-foreground">{t("countdownHint")}</div>
+              </div>
+            </div>
+            <Switch checked={countdownEnabled} onCheckedChange={toggleCountdown} />
           </div>
 
           {/* Кнопка теста */}

@@ -35,6 +35,7 @@ import {
   Languages,
   Radio,
   Settings,
+  Zap,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -72,7 +73,7 @@ import { DrawingCanvas } from "@/components/drawing-canvas"
 import { SongRecorder } from "@/components/song-recorder"
 import { AchievementsDialog } from "@/components/achievements-dialog"
 import { MultiplayerDialog } from "@/components/multiplayer-dialog"
-import { SettingsDialog } from "@/components/settings-dialog"
+import { SettingsDialog, isCountdownEnabled } from "@/components/settings-dialog"
 import { GameBoard } from "@/components/game-board"
 import type { MultiplayerClient } from "@/lib/multiplayer"
 import {
@@ -705,14 +706,22 @@ function TeamScoreCard({
   team,
   active,
   target,
+  index = 0,
 }: {
   team: Team
   active: boolean
   target: number
+  /** Порядковый номер для каскадной анимации появления */
+  index?: number
 }) {
   const { t, lang } = useI18n()
   return (
-    <div className="team-card">
+    <motion.div
+      className="team-card"
+      initial={{ opacity: 0, y: 16, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ type: "spring", stiffness: 260, damping: 22, delay: index * 0.08 }}
+    >
       <motion.div
         animate={active ? { scale: 1.04 } : { scale: 1 }}
         transition={{ type: "spring", stiffness: 220, damping: 18 }}
@@ -760,7 +769,7 @@ function TeamScoreCard({
           </div>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -782,6 +791,7 @@ function TeamGrid({
           team={team}
           active={activeTeam === i}
           target={target}
+          index={i}
         />
       ))}
     </div>
@@ -1177,6 +1187,31 @@ function SetupScreen({
                 {t("addedWords")} {customWordsText.split("\n").filter((s) => s.trim()).length} · {t("customWordsExpandHint")}
               </p>
             )}
+          </div>
+
+          {/* Быстрая игра — дефолты без настройки */}
+          <div>
+            <Button
+              size="lg"
+              variant="outline"
+              className="w-full text-base font-bold"
+              onClick={() =>
+                onStart(
+                  teams.slice(0, 2),
+                  10,
+                  60,
+                  [],
+                  [],
+                  []
+                )
+              }
+            >
+              <Zap className="mr-2 h-5 w-5 text-amber-500" />
+              {t("quickGame")}
+            </Button>
+            <p className="mt-1.5 text-center text-xs text-muted-foreground">
+              {t("quickGameHint")}
+            </p>
           </div>
 
           <Button
@@ -1821,7 +1856,7 @@ export default function Home() {
                   )}
                   <Button
                     size="lg"
-                    className="mt-6 w-full max-w-xs text-base font-bold"
+                    className="mt-6 w-full max-w-xs text-base font-bold btn-roll-glow"
                     onClick={handleRoll}
                     disabled={isMpGuestLocked}
                   >
@@ -1946,7 +1981,9 @@ export default function Home() {
                           size="lg"
                           variant="default"
                           className="mt-4 w-full font-bold"
-                          onClick={() => dispatch({ type: "START_COUNTDOWN" })}
+                          onClick={() =>
+                            dispatch({ type: isCountdownEnabled() ? "START_COUNTDOWN" : "REVEAL_WORD" })
+                          }
                         >
                           <Eye className="mr-2 h-5 w-5" />
                           {t(lang, "showWord")}
