@@ -1315,6 +1315,8 @@ export default function Home() {
   const mpRoleRef = useRef<"host" | "guest" | null>(null)
   const mpSyncModeRef = useRef<"host" | "sync" | null>(null)
   const [mpStatus, setMpStatus] = useState<"disconnected" | "connecting" | "connected" | "error">("disconnected")
+  /** Код активной мультиплеерной комнаты — виден в шапке, чтобы игроки не потеряли его */
+  const [mpRoom, setMpRoom] = useState<string | null>(null)
   const [mpMembers, setMpMembers] = useState(1)
   const [mpError, setMpError] = useState<string | null>(null)
   // ВАЖНО: ref для защиты от циклов синхронизации
