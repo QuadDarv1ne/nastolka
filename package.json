@@ -8,6 +8,9 @@
     "start": "node .next/standalone/server.js",
     "start:bun": "bun .next/standalone/server.js",
     "lint": "eslint .",
+    "hooks:install": "git config core.hooksPath .githooks",
+    "hooks:uninstall": "git config --unset core.hooksPath",
+    "push:all": "node scripts/push-all-remotes.mjs",
     "mp": "cd mini-services/nastolka-multiplayer && bun run dev",
     "mp:start": "cd mini-services/nastolka-multiplayer && bun run start"
   },

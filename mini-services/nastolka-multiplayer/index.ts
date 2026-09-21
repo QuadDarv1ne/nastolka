@@ -11,13 +11,41 @@
 // обновления. Сервер — просто ретранслятор.
 
 import { createServer } from 'http'
-import { Server } from 'socket.io'
+import { appendFileSync, mkdirSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { Server, type Socket } from 'socket.io'
 
 // Путь socket.io — /mp, а не корень. Это позволяет Next.js проксировать
 // мультиплеер через rewrite /mp/* → :3003 (см. next.config.ts), чтобы у сайта
 // и WebSocket был один origin. Иначе браузер блокирует http-сокет на
 // https-странице (mixed content), а на превью-доменах порт 3003 вообще закрыт.
 const WS_PATH = process.env.MP_PATH || '/mp'
+const LOG_FILE = resolve(process.env.MP_LOG_FILE || 'logs/multiplayer.log')
+const TRUST_PROXY = process.env.MP_TRUST_PROXY !== 'false'
+
+mkdirSync(dirname(LOG_FILE), { recursive: true })
+
+const normalizeIp = (ip: string) => ip.startsWith('::ffff:') ? ip.slice(7) : ip
+
+const getClientIp = (socket: Socket) => {
+  const forwarded = socket.handshake.headers['x-forwarded-for']
+  if (TRUST_PROXY && typeof forwarded === 'string' && forwarded.length > 0) {
+    return normalizeIp(forwarded.split(',')[0].trim())
+  }
+  const realIp = socket.handshake.headers['x-real-ip']
+  if (TRUST_PROXY && typeof realIp === 'string' && realIp.length > 0) {
+    return normalizeIp(realIp.trim())
+  }
+  return normalizeIp(socket.handshake.address || 'unknown')
+}
+
+const writeLog = (event: string, details: Record<string, unknown>) => {
+  try {
+    appendFileSync(LOG_FILE, `${JSON.stringify({ timestamp: new Date().toISOString(), event, ...details })}\n`)
+  } catch (error) {
+    console.error('[log] не удалось записать multiplayer.log:', error)
+  }
+}
 
 // roomCode → Set<socketId>
 const rooms = new Map<string, Set<string>>()
@@ -52,17 +80,38 @@ const generateRoomCode = () => {
   return rooms.has(code) ? generateRoomCode() : code
 }
 
+const leaveRoom = (socketId: string, notify = true) => {
+  const room = socketToRoom.get(socketId)
+  if (!room) return
+  const members = rooms.get(room)
+  if (members) {
+    members.delete(socketId)
+    if (members.size === 0) {
+      rooms.delete(room)
+      console.log(`[room ${room}] emptied, removed`)
+    } else if (notify) {
+      io.to(room).emit('peer-left', { id: socketId, members: members.size })
+      console.log(`[room ${room}] ${socketId} left (now ${members.size})`)
+    }
+  }
+  socketToRoom.delete(socketId)
+}
+
 io.on('connection', (socket) => {
-  console.log(`[+] ${socket.id}`)
+  const ip = getClientIp(socket)
+  console.log(`[+] ${socket.id} (${ip})`)
+  writeLog('connect', { socketId: socket.id, ip })
 
   // Создать новую комнату
   socket.on('create-room', () => {
+    leaveRoom(socket.id)
     const code = generateRoomCode()
     rooms.set(code, new Set([socket.id]))
     socketToRoom.set(socket.id, code)
     socket.join(code)
     socket.emit('room-created', { code })
     console.log(`[room ${code}] created by ${socket.id}`)
+    writeLog('room-created', { socketId: socket.id, ip, room: code })
   })
 
   // Присоединиться к существующей комнате
@@ -77,6 +126,7 @@ io.on('connection', (socket) => {
       socket.emit('room-error', { message: 'Комната уже заполнена (макс 4 игрока)' })
       return
     }
+    leaveRoom(socket.id)
     members.add(socket.id)
     socketToRoom.set(socket.id, upper)
     socket.join(upper)
@@ -84,6 +134,7 @@ io.on('connection', (socket) => {
     // Сообщить остальным, что присоединился новый участник
     socket.to(upper).emit('peer-joined', { id: socket.id, members: members.size })
     console.log(`[room ${upper}] ${socket.id} joined (now ${members.size})`)
+    writeLog('room-joined', { socketId: socket.id, ip, room: upper })
   })
 
   // Синхронизация состояния игры
@@ -103,6 +154,8 @@ io.on('connection', (socket) => {
 
   // Ответить другому участнику состоянием (один из участников отвечает)
   socket.on('send-state-to', ({ to, state }: { to: string; state: unknown }) => {
+    const room = socketToRoom.get(socket.id)
+    if (!room || socketToRoom.get(to) !== room) return
     io.to(to).emit('state-update', { from: socket.id, state })
   })
 
@@ -120,21 +173,9 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     const room = socketToRoom.get(socket.id)
-    if (room) {
-      const members = rooms.get(room)
-      if (members) {
-        members.delete(socket.id)
-        if (members.size === 0) {
-          rooms.delete(room)
-          console.log(`[room ${room}] emptied, removed`)
-        } else {
-          socket.to(room).emit('peer-left', { id: socket.id, members: members.size })
-          console.log(`[room ${room}] ${socket.id} left (now ${members.size})`)
-        }
-      }
-    }
-    socketToRoom.delete(socket.id)
-    console.log(`[-] ${socket.id}`)
+    leaveRoom(socket.id)
+    writeLog('disconnect', { socketId: socket.id, ip, room: room || null })
+    console.log(`[-] ${socket.id} (${ip})`)
   })
 
   socket.on('error', (err) => {
