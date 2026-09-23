@@ -2,6 +2,8 @@
 // состояния активной игры. Переживает перезагрузки, закрытие вкладки, новый
 // запуск браузера.
 
+import { readJson, writeJson } from "@/lib/storage"
+
 export interface GlobalStats {
   totalGames: number       // сколько игр сыграно (до победы какой-то команды)
   totalWordsGuessed: number // сколько слов угадано всего
@@ -37,24 +39,14 @@ function defaultStats(): GlobalStats {
 /** Прочитать глобальную статистику из localStorage */
 export function loadGlobalStats(): GlobalStats {
   if (typeof window === "undefined") return defaultStats()
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return defaultStats()
-    const parsed = JSON.parse(raw) as Partial<GlobalStats>
-    return { ...defaultStats(), ...parsed }
-  } catch {
-    return defaultStats()
-  }
+  const parsed = readJson<Partial<GlobalStats>>(STORAGE_KEY)
+  return { ...defaultStats(), ...parsed }
 }
 
 /** Сохранить глобальную статистику */
 function saveGlobalStats(stats: GlobalStats) {
   if (typeof window === "undefined") return
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stats))
-  } catch {
-    // ignore quota errors
-  }
+  writeJson(STORAGE_KEY, stats)
 }
 
 /** Записать окончание одной игры.

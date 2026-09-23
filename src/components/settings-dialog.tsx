@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { useI18n } from "@/hooks/i18n-context"
 import { isMuted, setMuted, setHapticsEnabled, unlockAudio } from "@/lib/sounds"
+import { readItem, writeItem } from "@/lib/storage"
 
 const SOUND_STORAGE = "nastolka-sound-enabled"
 const HAPTIC_STORAGE = "nastolka-haptic-enabled"
@@ -14,11 +15,7 @@ export const COUNTDOWN_STORAGE = "nastolka-countdown-enabled"
 
 /** Включён ли отсчёт 3-2-1 перед раундом (по умолчанию — да) */
 export function isCountdownEnabled(): boolean {
-  try {
-    return localStorage.getItem(COUNTDOWN_STORAGE) !== "false"
-  } catch {
-    return true
-  }
+  return readItem(COUNTDOWN_STORAGE) !== "false"
 }
 
 /** Диалог настроек: звуковые эффекты, тактильная отдача, отсчёт 3-2-1 */
@@ -32,37 +29,25 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
     // Читаем сохранённые настройки после гидратации (setState в эффекте — намеренно,
     // это канонический паттерн чтения клиентского состояния после монтирования)
     /* eslint-disable react-hooks/set-state-in-effect */
-    try {
-      const s = localStorage.getItem(SOUND_STORAGE)
-      const h = localStorage.getItem(HAPTIC_STORAGE)
-      const c = localStorage.getItem(COUNTDOWN_STORAGE)
-      if (s !== null) setSoundEnabled(s === "true")
-      if (h !== null) setHapticEnabled(h === "true")
-      if (c !== null) setCountdownEnabled(c === "true")
-    } catch {
-      // ignore
-    }
+    const s = readItem(SOUND_STORAGE)
+    const h = readItem(HAPTIC_STORAGE)
+    const c = readItem(COUNTDOWN_STORAGE)
+    if (s !== null) setSoundEnabled(s === "true")
+    if (h !== null) setHapticEnabled(h === "true")
+    if (c !== null) setCountdownEnabled(c === "true")
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [])
 
   const toggleSound = (enabled: boolean) => {
     setSoundEnabled(enabled)
-    try {
-      localStorage.setItem(SOUND_STORAGE, String(enabled))
-    } catch {
-      // ignore
-    }
+    writeItem(SOUND_STORAGE, String(enabled))
     setMuted(!enabled)
     if (enabled) unlockAudio()
   }
 
   const toggleHaptic = (enabled: boolean) => {
     setHapticEnabled(enabled)
-    try {
-      localStorage.setItem(HAPTIC_STORAGE, String(enabled))
-    } catch {
-      // ignore
-    }
+    writeItem(HAPTIC_STORAGE, String(enabled))
     setHapticsEnabled(enabled)
     if (enabled && typeof navigator !== "undefined" && "vibrate" in navigator) {
       try {
@@ -75,11 +60,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
 
   const toggleCountdown = (enabled: boolean) => {
     setCountdownEnabled(enabled)
-    try {
-      localStorage.setItem(COUNTDOWN_STORAGE, String(enabled))
-    } catch {
-      // ignore
-    }
+    writeItem(COUNTDOWN_STORAGE, String(enabled))
   }
 
   return (

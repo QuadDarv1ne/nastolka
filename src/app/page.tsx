@@ -666,7 +666,7 @@ function HeaderBar({
             иконки компактнее на телефонах, крупнее на планшетах/ПК */}
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-1 sm:gap-1.5">
           <Button variant="ghost" size="sm" className="size-8 p-0 sm:size-10" onClick={onShowMultiplayer} aria-label="Multiplayer">
-            <Radio className={`size-4 ${multiplayerStatus === "connected" ? "text-emerald-500" : ""}`} />
+            <Radio className={`size-4 ${multiplayerStatus === "connected" ? "text-emerald-500" : multiplayerStatus === "error" ? "animate-pulse text-rose-500" : ""}`} />
           </Button>
           <Button variant="ghost" size="sm" className="h-8 px-1.5 sm:h-10 sm:px-2" onClick={onToggleLang} aria-label="Change language">
             <Languages className="size-4" />
@@ -2560,6 +2560,24 @@ export default function Home() {
           {t(lang, "footerText")}
         </footer>
       </div>
+
+      {/* Мультиплеер: связь с комнатой потеряна — показываем поверх игры */}
+      <AnimatePresence>
+        {mpStatus === "error" && (
+          <motion.button
+            type="button"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            onClick={() => setShowMultiplayer(true)}
+            className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-2xl bg-amber-500 px-4 py-3 text-sm font-bold text-white shadow-xl"
+          >
+            <Radio className="h-4 w-4" />
+            {mpError || t(lang, "mpDisconnected")}
+          </motion.button>
+        )}
+      </AnimatePresence>
+
 
       <RulesDialog open={showRules} onOpenChange={setShowRules} />
       <HistoryDialog open={showHistory} onOpenChange={setShowHistory} state={state} />

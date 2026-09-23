@@ -2,6 +2,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { readItem, writeItem } from "@/lib/storage"
 
 type Theme = "light" | "dark"
 
@@ -16,9 +17,9 @@ const DEFAULT_THEME: Theme = "light"
 
 function getStoredTheme(): Theme {
   if (typeof window === "undefined") return DEFAULT_THEME
+  const saved = readItem(STORAGE_KEY)
+  if (saved === "dark" || saved === "light") return saved
   try {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved === "dark" || saved === "light") return saved
     if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) return "dark"
   } catch {
     // ignore
@@ -42,11 +43,7 @@ export function useTheme() {
     const root = document.documentElement
     if (theme === "dark") root.classList.add("dark")
     else root.classList.remove("dark")
-    try {
-      localStorage.setItem(STORAGE_KEY, theme)
-    } catch {
-      // ignore
-    }
+    writeItem(STORAGE_KEY, theme)
   }, [theme])
 
   const toggle = () => setTheme((t) => (t === "dark" ? "light" : "dark"))
