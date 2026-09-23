@@ -363,6 +363,17 @@ export const STRINGS = {
     en: "Visible to other room members — so everyone knows who is behind each device.",
   },
   mpMembersTitle: { ru: "Участники комнаты", en: "Room members" },
+  // Никнейм (обязателен при первом заходе)
+  nickTitle: { ru: "Как вас зовут?", en: "What's your name?" },
+  nickDescription: {
+    ru: "Никнейм обязателен: по нему мы поймём, кто за каким устройством играет, и кто заходил на сайт.",
+    en: "A nickname is required: it shows who is behind each device and who visited the site.",
+  },
+  nickPlaceholder: { ru: "Максим", en: "Alex" },
+  nickSave: { ru: "Играть", en: "Play" },
+  nickRandom: { ru: "Мне повезёт", en: "Feeling lucky" },
+  nickInHeader: { ru: "Игрок", en: "Player" },
+  nickChange: { ru: "Сменить никнейм", en: "Change nickname" },
   mpTeamShuffled: { ru: "Лобби заполнено — команды распределены случайно!", en: "Lobby is full — teams were shuffled randomly!" },
   mpWatchingRound: {
     ru: "Сейчас играет другая команда — вы можете только смотреть. Ваша фишка «Повтор раунда» доступна под таймером.",

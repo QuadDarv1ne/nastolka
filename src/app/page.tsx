@@ -105,6 +105,8 @@ import {
 } from "@/lib/sounds"
 import { recordGameComplete } from "@/lib/achievements"
 import { readItem, readJson, removeItem, writeJson } from "@/lib/storage"
+import { getNickname, saveNickname, hasNickname, randomNickname, NICKNAME_MAX_LENGTH } from "@/lib/nickname"
+import { getDeviceInfo, type DeviceInfo } from "@/lib/device-info"
 import { useTheme } from "@/hooks/use-theme"
 import { useLang } from "@/hooks/use-lang"
 import { I18nContext, useI18n } from "@/hooks/i18n-context"
@@ -729,6 +731,7 @@ function HeaderBar({
   onShowSettings,
   hasHistory,
   multiplayerStatus,
+  nickname,
   lang,
   onToggleLang,
 }: {
@@ -739,6 +742,7 @@ function HeaderBar({
   onShowSettings: () => void
   hasHistory: boolean
   multiplayerStatus: "disconnected" | "connecting" | "connected" | "error"
+  nickname: string
   lang: Lang
   onToggleLang: () => void
 }) {
@@ -1479,6 +1483,9 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false)
   const [showGameBoard, setShowGameBoard] = useState(false)
   const [hydrated, setHydrated] = useState(false)
+  // ─── Никнейм (обязателен при первом заходе) ───
+  const [nickname, setNicknameState] = useState("")
+  const [nicknameModal, setNicknameModal] = useState(false)
   const { lang, toggle: toggleLang } = useLang()
 
   // Полноэкранные плавающие «+N» при угаданном слове
@@ -1523,6 +1530,10 @@ export default function Home() {
 
   // ─── Восстановление состояния из localStorage при загрузке ───
   useEffect(() => {
+    // Никнейм: если его нет — обязательно спрашиваем (модалку нельзя закрыть)
+    const savedNickname = getNickname()
+    setNicknameState(savedNickname)
+    if (!savedNickname) setNicknameModal(true)
     // Применяем сохранённые настройки звука и вибрации (из SettingsDialog)
     const s = readItem("nastolka-sound-enabled")
     const h = readItem("nastolka-haptic-enabled")
@@ -1586,6 +1597,28 @@ export default function Home() {
     }
     setHydrated(true)
   }, [])
+
+  // ─── Аналитика: отправляем полный профиль устройства на сервер ───
+  // Один раз за сессию (sessionStorage-флаг), с никнеймом — чтобы в админке
+  // было видно, кто с какого устройства заходил.
+  useEffect(() => {
+    if (!nickname) return
+    try {
+      if (sessionStorage.getItem("nastolka-device-reported")) return
+      sessionStorage.setItem("nastolka-device-reported", "1")
+    } catch {
+      // sessionStorage недоступен — просто отправляем (дубль не критичен)
+    }
+    const info = getDeviceInfo()
+    void fetch("/api/visitors", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ nickname, device: info }),
+      keepalive: true,
+    }).catch(() => {
+      // аналитика не критична — молча игнорируем
+    })
+  }, [nickname])
 
   // ─── Мультиплеер: обработчики событий от сервера ───
   const handleMpConnect = useCallback(
@@ -1846,6 +1879,15 @@ export default function Home() {
     hapticChip()
     dispatch({ type: "REPLAY_ROUND", byTeam: myTeamIndex })
   }, [myTeamIndex])
+
+  // ─── Никнейм: сохранение из обязательной модалки ───
+  const handleSaveNickname = useCallback(() => {
+    const trimmed = nickname.trim()
+    if (!trimmed) return
+    saveNickname(trimmed)
+    setNicknameState(trimmed)
+    setNicknameModal(false)
+  }, [nickname])
 
   /* Бросок кубика: запускаем анимацию, через 1.4с — фиксируем результат */
   const rollTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -2904,6 +2946,51 @@ export default function Home() {
         )}
       </AnimatePresence>
 
+
+      {/* Обязательная модалка никнейма при первом заходе — нельзя закрыть без ввода */}
+      <Dialog open={nicknameModal} onOpenChange={() => { /* нельзя закрыть без ника */ }}>
+        <DialogContent className="max-w-sm" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-2xl">
+              <Users className="h-6 w-6" />
+              {t(lang, "nickTitle")}
+            </DialogTitle>
+            <DialogDescription>{t(lang, "nickDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              autoFocus
+              value={nickname}
+              onChange={(e) => setNicknameState(e.target.value.slice(0, NICKNAME_MAX_LENGTH))}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSaveNickname() }}
+              placeholder={t(lang, "nickPlaceholder")}
+              maxLength={NICKNAME_MAX_LENGTH}
+              className="text-center text-lg font-bold"
+            />
+            <p className="text-center text-xs text-muted-foreground">
+              {nickname.trim().length}/{NICKNAME_MAX_LENGTH}
+            </p>
+            <Button
+              size="lg"
+              className="w-full font-bold"
+              disabled={!nickname.trim()}
+              onClick={handleSaveNickname}
+            >
+              <Check className="mr-2 h-5 w-5" />
+              {t(lang, "nickSave")}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full"
+              onClick={() => setNicknameState(randomNickname())}
+            >
+              <Sparkles className="mr-2 h-4 w-4" />
+              {t(lang, "nickRandom")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <RulesDialog open={showRules} onOpenChange={setShowRules} />
       <HistoryDialog open={showHistory} onOpenChange={setShowHistory} state={state} />
