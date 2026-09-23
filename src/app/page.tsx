@@ -159,6 +159,8 @@ const initialState: State = {
   stealTeam: -1,
   stealJustUsed: false,
   countdownSeconds: 0,
+  abandonedTeams: [],
+  forfeit: false,
 }
 
 /* ─────────────────── Валидация состояния из мультиплеера ─────────────────── */
@@ -504,7 +506,12 @@ function makeReducer() {
 
       case "NEXT_TURN": {
         const total = state.teams.length
-        const nextTeam = (state.activeTeam + 1) % total
+        // Команды-пустышки (игрок вышел) пропускаются автоматически
+        let nextTeam = (state.activeTeam + 1) % total
+        for (let i = 0; i < total; i++) {
+          if (!state.abandonedTeams.includes(nextTeam)) break
+          nextTeam = (nextTeam + 1) % total
+        }
         return {
           ...state,
           phase: "ready",

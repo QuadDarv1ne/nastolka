@@ -79,6 +79,10 @@ export interface State {
   stealTeam: number                    // номер команды, у которой есть фишка Кража хода (-1 = нет)
   stealJustUsed: boolean               // флажок — была ли только что использована кража (для UI)
   countdownSeconds: number             // отсчёт 3-2-1 перед началом раунда (0 = не активен)
+  /** Команды, чьи игроки вышли из мультиплеера (ходы автоматически пропускаются) */
+  abandonedTeams: number[]
+  /** Победа засчитана технически (соперник покинул игру) */
+  forfeit: boolean
 }
 
 export type Action =
@@ -101,6 +105,9 @@ export type Action =
    *  засчитываются, раунд начинается заново с тем же словом/методом, но с
    *  меньшим временем (-10 сек, минимум REPLAY_MIN_SECONDS). */
   | { type: "REPLAY_ROUND"; byTeam: number }
+  /** Игрок команды teamIndex покинул мультиплеер: команда выбывает; если
+   *  осталась одна — она побеждает технически (forfeit). */
+  | { type: "ABANDON_TEAM"; teamIndex: number }
   | { type: "PAUSE" }
   | { type: "RESUME" }
   | { type: "NEXT_TURN" }

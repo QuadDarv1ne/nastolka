@@ -150,14 +150,16 @@ const leaveRoom = (socketId: string, notify = true) => {
   const room = rooms.get(roomCode)
   io.sockets.sockets.get(socketId)?.leave(roomCode)
   if (room) {
+    // Какой командой играл выходящий — чтобы клиенты могли завершить игру
+    const teamIndex = room.teamAssignments.get(socketId) ?? -1
     room.teamAssignments.delete(socketId)
     if (room.teamAssignments.size === 0) {
       rooms.delete(roomCode)
       console.log(`[room ${roomCode}] emptied, removed`)
       broadcastLobbiesChanged()
     } else if (notify) {
-      io.to(roomCode).emit('peer-left', { id: socketId, members: room.teamAssignments.size })
-      console.log(`[room ${roomCode}] ${socketId} left (now ${room.teamAssignments.size})`)
+      io.to(roomCode).emit('peer-left', { id: socketId, members: room.teamAssignments.size, teamIndex })
+      console.log(`[room ${roomCode}] ${socketId} left (team ${teamIndex}, now ${room.teamAssignments.size})`)
       broadcastLobbiesChanged()
     }
   }
