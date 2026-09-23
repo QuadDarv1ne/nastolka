@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type VisitorStats = {
   total: number;
@@ -21,36 +21,42 @@ type VisitorStats = {
   }>;
 };
 
-const STORAGE_KEY = "nastolka-admin-key";
+const STORAGE_KEY = "nastolka-admin-token";
 
 export default function AdminPage() {
-  const [key, setKey] = useState<string>("");
-  const [storedKey, setStoredKey] = useState<string>("" );
+  const [key, setKey] = useState("");
+  const [generatedUrl, setGeneratedUrl] = useState("");
   const [stats, setStats] = useState<VisitorStats | null>(null);
-  const [error, setError] = useState<string>("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const loadStats = async (adminKey: string) => {
+  const readStoredToken = () => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+
+    return sessionStorage.getItem(STORAGE_KEY) || "";
+  };
+
+  const loadStats = async (tokenOrKey: string, mode: "token" | "key" = "token") => {
     setLoading(true);
     setError("");
 
     try {
-      const response = await fetch("/api/visitors", {
-        headers: {
-          "x-admin-key": adminKey,
-        },
-      });
-
+      const headers: Record<string, string> = mode === "token" ? { "x-admin-token": tokenOrKey } : { "x-admin-key": tokenOrKey };
+      const response = await fetch("/api/visitors", { headers });
       const body = await response.text();
+
       if (!response.ok) {
         throw new Error(body || "Unauthorized");
       }
 
       const json = JSON.parse(body) as VisitorStats;
       setStats(json);
-      setStoredKey(adminKey);
+      setGeneratedUrl("");
+
       if (typeof window !== "undefined") {
-        sessionStorage.setItem(STORAGE_KEY, adminKey);
+        sessionStorage.setItem(STORAGE_KEY, tokenOrKey);
       }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить статистику");
@@ -60,54 +66,88 @@ export default function AdminPage() {
     }
   };
 
+  useEffect(() => {
+    const queryToken = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("token") : null;
+    const savedToken = readStoredToken();
+
+    if (queryToken) {
+      void loadStats(queryToken, "token");
+      return;
+    }
+
+    if (savedToken) {
+      void loadStats(savedToken, "token");
+    }
+  }, []);
+
   const deviceEntries = useMemo(() => Object.entries(stats?.devices ?? {}), [stats]);
   const countryEntries = useMemo(() => Object.entries(stats?.countries ?? {}), [stats]);
   const cityEntries = useMemo(() => Object.entries(stats?.cities ?? {}), [stats]);
 
-  const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const onKeySubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    await loadStats(key.trim());
+    const trimmedKey = key.trim();
+    if (!trimmedKey) {
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/admin/token", {
+        method: "POST",
+        headers: {
+          "x-admin-key": trimmedKey,
+        },
+      });
+
+      const bodyText = await response.text();
+      if (!response.ok) {
+        throw new Error(bodyText || "Unauthorized");
+      }
+
+      const data = JSON.parse(bodyText) as { token?: string; url?: string };
+      if (!data.token) {
+        throw new Error("Секретная ссылка не была сгенерирована");
+      }
+
+      if (typeof window !== "undefined") {
+        window.history.replaceState({}, "", data.url || "/admin");
+      }
+
+      setGeneratedUrl(data.url || "");
+      await loadStats(data.token, "token");
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Не удалось сгенерировать ссылку");
+      setLoading(false);
+      setStats(null);
+    }
   };
 
-  const activeKey = storedKey || (typeof window !== "undefined" ? sessionStorage.getItem(STORAGE_KEY) || "" : "");
+  const onManualKeySubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedKey = key.trim();
+    if (!trimmedKey) {
+      return;
+    }
 
-  if (!activeKey && !stats) {
-    return (
-      <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
-        <div className="mx-auto max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
-          <p className="mb-2 text-xs uppercase tracking-[0.2em] text-cyan-400">Admin access</p>
-          <h1 className="mb-6 text-2xl font-bold">Статистика посетителей</h1>
+    await loadStats(trimmedKey, "key");
+  };
 
-          <form onSubmit={onSubmit} className="space-y-4">
-            <label className="block text-sm font-medium text-slate-300">
-              Введите ADMIN_API_KEY
-              <input
-                type="password"
-                value={key}
-                onChange={(event) => setKey(event.target.value)}
-                placeholder="secret-key"
-                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-base text-white outline-none ring-0 placeholder:text-slate-500 focus:border-cyan-500"
-              />
-            </label>
+  const logout = () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem(STORAGE_KEY);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("token");
+      window.history.replaceState({}, "", url.pathname);
+    }
 
-            <button
-              type="submit"
-              disabled={loading || !key.trim()}
-              className="w-full rounded-xl bg-cyan-500 px-4 py-2 font-medium text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? "Загрузка..." : "Открыть отчёт"}
-            </button>
-          </form>
-
-          {error ? (
-            <div className="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-200">
-              {error}
-            </div>
-          ) : null}
-        </div>
-      </main>
-    );
-  }
+    setGeneratedUrl("");
+    setStats(null);
+    setKey("");
+    setError("");
+  };
 
   if (stats && !error) {
     return (
@@ -122,15 +162,7 @@ export default function AdminPage() {
             <button
               type="button"
               className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-slate-200 hover:border-slate-500"
-              onClick={() => {
-                if (typeof window !== "undefined") {
-                  sessionStorage.removeItem(STORAGE_KEY);
-                }
-                setStoredKey("");
-                setStats(null);
-                setKey("");
-                setError("");
-              }}
+              onClick={logout}
             >
               Выйти
             </button>
@@ -231,5 +263,73 @@ export default function AdminPage() {
     );
   }
 
-  return null;
+  return (
+    <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
+      <div className="mx-auto max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+        <p className="mb-2 text-xs uppercase tracking-[0.2em] text-cyan-400">Admin access</p>
+        <h1 className="mb-6 text-2xl font-bold">Статистика посетителей</h1>
+
+        <div className="mb-4 rounded-xl border border-cyan-500/30 bg-cyan-500/5 p-3 text-xs text-cyan-100">
+          Генерация ключа: <span className="font-mono">openssl rand -base64 32</span>
+        </div>
+
+        <form onSubmit={onKeySubmit} className="space-y-4">
+          <label className="block text-sm font-medium text-slate-300">
+            ADMIN_API_KEY для генерации защищённой ссылки
+            <input
+              type="password"
+              value={key}
+              onChange={(event) => setKey(event.target.value)}
+              placeholder="secret-key"
+              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-base text-white outline-none ring-0 placeholder:text-slate-500 focus:border-cyan-500"
+            />
+          </label>
+
+          <button
+            type="submit"
+            disabled={loading || !key.trim()}
+            className="w-full rounded-xl bg-cyan-500 px-4 py-2 font-medium text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? "Загрузка..." : "Создать секретную ссылку"}
+          </button>
+        </form>
+
+        {generatedUrl ? (
+          <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-100">
+            <p className="mb-2 font-medium">Секретная ссылка готова:</p>
+            <a href={generatedUrl} className="break-all text-cyan-300 underline">{generatedUrl}</a>
+          </div>
+        ) : null}
+
+        <div className="my-5 border-t border-slate-700" />
+
+        <form onSubmit={onManualKeySubmit} className="space-y-4">
+          <label className="block text-sm font-medium text-slate-300">
+            Или открыть отчёт напрямую по ключу
+            <input
+              type="password"
+              value={key}
+              onChange={(event) => setKey(event.target.value)}
+              placeholder="secret-key"
+              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-base text-white outline-none ring-0 placeholder:text-slate-500 focus:border-cyan-500"
+            />
+          </label>
+
+          <button
+            type="submit"
+            disabled={loading || !key.trim()}
+            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 font-medium text-slate-200 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? "Загрузка..." : "Открыть по ключу"}
+          </button>
+        </form>
+
+        {error ? (
+          <div className="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-200">
+            {error}
+          </div>
+        ) : null}
+      </div>
+    </main>
+  );
 }
