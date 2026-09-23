@@ -151,8 +151,12 @@ export interface MultiplayerClient {
   sendMeta: (meta: MultiplayerMeta) => void
   /** Запросить список открытых лобби у сервера */
   listLobbies: () => void
-  /** Мой socketId (для сопоставления team-assigned с собой) */
+  /** Явно покинуть комнату (сервер удаляет устройство сразу, без грейс-периода) */
+  leaveRoom: () => void
+  /** Мой socketId */
   socketId: string
+  /** Стабильный ID моего устройства (по нему сервер узнаёт нас при переподключении) */
+  deviceId: string
   on: <K extends keyof MultiplayerEvents>(event: K, cb: (payload: MultiplayerEvents[K]) => void) => void
   off: <K extends keyof MultiplayerEvents>(event: K, cb: (payload: MultiplayerEvents[K]) => void) => void
 }
@@ -174,13 +178,15 @@ export interface LobbyInfo {
   status: "lobby" | "playing"
   createdAt: number
   /** Участники комнаты (имена + устройства) */
-  players: { teamIndex: number; profile: MemberProfile }[]
+  players: { teamIndex: number; profile: MemberProfile; connected?: boolean }[]
 }
 
 export interface MultiplayerEvents {
   'room-created': { code: string; teamIndex: number; syncMode: "host" | "sync"; members: number }
-  'room-joined': { code: string; members: number; teamIndex: number; syncMode: "host" | "sync" }
+  'room-joined': { code: string; members: number; teamIndex: number; syncMode: "host" | "sync"; reconnected?: boolean }
   'room-error': { message: string }
+  /** Ответ на явный выход из комнаты */
+  'room-left': { code: string }
   'peer-joined': { id: string; members: number; teamIndex: number; profile: MemberProfile }
   'peer-left': { id: string; members: number; teamIndex: number }
   /** Полный список участников комнаты с профилями (после входа/выхода/переименования) */

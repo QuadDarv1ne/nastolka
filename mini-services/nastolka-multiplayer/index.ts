@@ -287,39 +287,48 @@ io.on('connection', (socket) => {
 
   // Создать новую комнату (syncMode задаёт хост)
   socket.on('create-room', ({ syncMode, profile }: { syncMode?: 'host' | 'sync'; profile?: unknown }) => {
-    leaveRoom(socket.id)
+    detachSocket(socket.id, true)
     const code = generateRoomCode()
+    const deviceId = normalizeProfile(profile, `sock-${socket.id}`).deviceId
+    const member: Member = {
+      deviceId,
+      socketId: socket.id,
+      profile: normalizeProfile(profile, deviceId),
+      teamIndex: 0, // хост — команда 0
+      connected: true,
+      disconnectTimer: null,
+    }
     const room: RoomInfo = {
       code,
       syncMode: syncMode === 'sync' ? 'sync' : 'host',
-      teamAssignments: new Map([[socket.id, 0]]), // хост — команда 0
-      memberInfo: new Map([[socket.id, normalizeProfile(profile)]]),
+      members: new Map([[deviceId, member]]),
       teamInfo: [],
       status: 'lobby',
       createdAt: Date.now(),
     }
     rooms.set(code, room)
-    socketToRoom.set(socket.id, code)
+    socketIndex.set(socket.id, { roomCode: code, deviceId })
     socket.join(code)
     socket.emit('room-created', { code, teamIndex: 0, syncMode: room.syncMode, members: 1 })
     socket.emit('members-list', { members: roomMembers(room) })
-    console.log(`[room ${code}] created by ${socket.id} (syncMode=${room.syncMode})`)
+    console.log(`[room ${code}] created by ${deviceId} (syncMode=${room.syncMode})`)
     writeLog('room-created', { socketId: socket.id, ip, room: code })
     broadcastLobbiesChanged()
   })
 
   // Обновить свой профиль (переименование игрока)
   socket.on('update-profile', ({ profile }: { profile?: unknown }) => {
-    const roomCode = socketToRoom.get(socket.id)
-    if (!roomCode) return
-    const room = rooms.get(roomCode)
-    if (!room) return
-    room.memberInfo.set(socket.id, normalizeProfile(profile))
-    io.to(roomCode).emit('members-list', { members: roomMembers(room) })
+    const ref = socketIndex.get(socket.id)
+    if (!ref) return
+    const room = rooms.get(ref.roomCode)
+    const member = room?.members.get(ref.deviceId)
+    if (!room || !member) return
+    member.profile = normalizeProfile(profile, ref.deviceId)
+    io.to(ref.roomCode).emit('members-list', { members: roomMembers(room) })
     broadcastLobbiesChanged()
   })
 
-  // Присоединиться к существующей комнате
+  // Присоединиться к существующей комнате (или вернуться в неё после обрыва)
   socket.on('join-room', ({ code, profile }: { code: string; profile?: unknown }) => {
     const upper = (code || '').toUpperCase().trim()
     const room = rooms.get(upper)
@@ -327,34 +336,79 @@ io.on('connection', (socket) => {
       socket.emit('room-error', { message: 'Комната не найдена' })
       return
     }
-    if (room.teamAssignments.size >= MAX_MEMBERS) {
+    const deviceId = normalizeProfile(profile, `sock-${socket.id}`).deviceId
+    const existing = room.members.get(deviceId)
+
+    // ── Возврат устройства в грейс-периоде: сохраняем прежнюю команду ──
+    if (existing) {
+      if (existing.disconnectTimer) {
+        clearTimeout(existing.disconnectTimer)
+        existing.disconnectTimer = null
+      }
+      // Если у устройства уже есть живой сокет — вытесняем старое соединение
+      if (existing.connected && existing.socketId && existing.socketId !== socket.id) {
+        const old = existing.socketId
+        socketIndex.delete(old)
+        io.sockets.sockets.get(old)?.leave(upper)
+        io.to(old).emit('room-error', { message: 'Устройство подключилось заново с другого окна' })
+        io.sockets.sockets.get(old)?.disconnect(true)
+      }
+      existing.socketId = socket.id
+      existing.connected = true
+      existing.profile = normalizeProfile(profile, deviceId)
+      socketIndex.set(socket.id, { roomCode: upper, deviceId })
+      socket.join(upper)
+      const members = room.members.size
+      socket.emit('room-joined', { code: upper, members, teamIndex: existing.teamIndex, syncMode: room.syncMode, reconnected: true })
+      socket.to(upper).emit('peer-joined', {
+        id: deviceId,
+        members,
+        teamIndex: existing.teamIndex,
+        profile: existing.profile,
+      })
+      io.to(upper).emit('members-list', { members: roomMembers(room) })
+      console.log(`[room ${upper}] ${deviceId} reconnected (team ${existing.teamIndex})`)
+      writeLog('room-rejoined', { socketId: socket.id, ip, room: upper, teamIndex: existing.teamIndex })
+      broadcastLobbiesChanged()
+      return
+    }
+
+    if (room.members.size >= MAX_MEMBERS) {
       socket.emit('room-error', { message: 'Комната уже заполнена (макс 4 игрока)' })
       return
     }
-    leaveRoom(socket.id)
+
+    detachSocket(socket.id, true)
     const teamIndex = nextTeamIndex(room)
-    room.teamAssignments.set(socket.id, teamIndex)
-    room.memberInfo.set(socket.id, normalizeProfile(profile))
-    socketToRoom.set(socket.id, upper)
+    const member: Member = {
+      deviceId,
+      socketId: socket.id,
+      profile: normalizeProfile(profile, deviceId),
+      teamIndex,
+      connected: true,
+      disconnectTimer: null,
+    }
+    room.members.set(deviceId, member)
+    socketIndex.set(socket.id, { roomCode: upper, deviceId })
     socket.join(upper)
-    const members = room.teamAssignments.size
+    const members = room.members.size
     // syncMode комнаты задаёт ХОСТ — гость получает его от сервера,
     // а не выбирает сам (иначе режимы расходятся и состояния воюют).
-    socket.emit('room-joined', { code: upper, members, teamIndex, syncMode: room.syncMode })
+    socket.emit('room-joined', { code: upper, members, teamIndex, syncMode: room.syncMode, reconnected: false })
     // Сообщить остальным, что присоединился новый участник и какой командой он играет
     socket.to(upper).emit('peer-joined', {
-      id: socket.id,
+      id: deviceId,
       members,
       teamIndex,
-      profile: room.memberInfo.get(socket.id)!,
+      profile: member.profile,
     })
     io.to(upper).emit('members-list', { members: roomMembers(room) })
-    io.to(upper).emit('team-assigned', { memberId: socket.id, teamIndex, members })
+    io.to(upper).emit('team-assigned', { memberId: deviceId, teamIndex, members })
     // При полном лобби (4/4) — рандомизируем распределение команд
     if (members === MAX_MEMBERS) {
       const assignments = shuffleAssignments(room)
       for (const { id, teamIndex: newIndex } of assignments) {
-        io.to(id).emit('team-reassigned', { teamIndex: newIndex, members })
+        io.to(room.members.get(id)?.socketId || '').emit('team-reassigned', { teamIndex: newIndex, members })
       }
       io.to(upper).emit('team-reassigned-all', {
         assignments: assignments.map(({ id, teamIndex: newIndex }) => ({ id, teamIndex: newIndex })),
@@ -362,19 +416,27 @@ io.on('connection', (socket) => {
       })
       console.log(`[room ${upper}] full (${members}/4) — команды перемешаны`)
     }
-    console.log(`[room ${upper}] ${socket.id} joined (team ${teamIndex}, now ${members})`)
+    console.log(`[room ${upper}] ${deviceId} joined (team ${teamIndex}, now ${members})`)
     writeLog('room-joined', { socketId: socket.id, ip, room: upper, teamIndex })
     broadcastLobbiesChanged()
   })
 
+  // Явный выход по кнопке — удаляем устройство сразу, без грейс-периода
+  socket.on('leave-room', () => {
+    const ref = socketIndex.get(socket.id)
+    if (!ref) return
+    detachSocket(socket.id, true)
+    socket.emit('room-left', { code: ref.roomCode })
+  })
+
   // Синхронизация состояния игры
   socket.on('state-update', ({ state }: { state: unknown }) => {
-    const roomCode = socketToRoom.get(socket.id)
-    if (!roomCode) return
+    const ref = socketIndex.get(socket.id)
+    if (!ref) return
     // Ретранслируем всем остальным в комнате (не себе)
-    socket.to(roomCode).emit('state-update', { from: socket.id, state })
+    socket.to(ref.roomCode).emit('state-update', { from: socket.id, state })
     // Обновляем статус комнаты для списка лобби
-    const room = rooms.get(roomCode)
+    const room = rooms.get(ref.roomCode)
     if (room) {
       const phase = (state as { phase?: string } | null)?.phase
       const status = phase === 'setup' ? 'lobby' : 'playing'
@@ -387,31 +449,32 @@ io.on('connection', (socket) => {
 
   // Запрос текущего состояния у участников (новый участник просит)
   socket.on('request-state', () => {
-    const roomCode = socketToRoom.get(socket.id)
-    if (!roomCode) return
-    socket.to(roomCode).emit('state-requested', { from: socket.id })
+    const ref = socketIndex.get(socket.id)
+    if (!ref) return
+    socket.to(ref.roomCode).emit('state-requested', { from: socket.id })
   })
 
   // Ответить другому участнику состоянием (один из участников отвечает)
   socket.on('send-state-to', ({ to, state }: { to: string; state: unknown }) => {
-    const roomCode = socketToRoom.get(socket.id)
-    if (!roomCode || socketToRoom.get(to) !== roomCode) return
+    const ref = socketIndex.get(socket.id)
+    const target = socketIndex.get(to)
+    if (!ref || !target || target.roomCode !== ref.roomCode) return
     io.to(to).emit('state-update', { from: socket.id, state })
   })
 
   // Метаданные от хоста: инфа о командах (имена/эмодзи) для списка лобби
   socket.on('meta-update', ({ meta }: { meta: unknown }) => {
-    const roomCode = socketToRoom.get(socket.id)
-    if (!roomCode) return
-    const room = rooms.get(roomCode)
+    const ref = socketIndex.get(socket.id)
+    if (!ref) return
+    const room = rooms.get(ref.roomCode)
     if (!room) return
     // teamInfo обновляет только создатель комнаты (первый участник)
-    const hostId = Array.from(room.teamAssignments.keys())[0]
-    if (socket.id === hostId && meta && typeof meta === 'object' && 'teams' in meta && Array.isArray((meta as { teams: unknown }).teams)) {
+    const hostId = Array.from(room.members.values())[0]?.deviceId
+    if (ref.deviceId === hostId && meta && typeof meta === 'object' && 'teams' in meta && Array.isArray((meta as { teams: unknown }).teams)) {
       room.teamInfo = (meta as { teams: { name: string; emoji: string }[] }).teams.slice(0, MAX_MEMBERS)
       broadcastLobbiesChanged()
     }
-    socket.to(roomCode).emit('meta-update', { from: socket.id, meta })
+    socket.to(ref.roomCode).emit('meta-update', { from: socket.id, meta })
   })
 
   // Поиск пары: ping для проверки соединения
@@ -420,9 +483,10 @@ io.on('connection', (socket) => {
   })
 
   socket.on('disconnect', () => {
-    const roomCode = socketToRoom.get(socket.id)
-    leaveRoom(socket.id)
-    writeLog('disconnect', { socketId: socket.id, ip, room: roomCode || null })
+    const ref = socketIndex.get(socket.id)
+    const roomCode = ref?.roomCode || null
+    detachSocket(socket.id, false)
+    writeLog('disconnect', { socketId: socket.id, ip, room: roomCode })
     console.log(`[-] ${socket.id} (${ip})`)
   })
 
