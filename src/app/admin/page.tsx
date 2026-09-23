@@ -22,6 +22,27 @@ type VisitorStats = {
 };
 
 const STORAGE_KEY = "nastolka-admin-token";
+const ADMIN_SESSION_TTL_MS = 1000 * 60 * 60;
+
+const decodeAdminTokenExpiry = (token: string) => {
+  try {
+    const [encoded] = token.split(".");
+    if (!encoded) {
+      return 0;
+    }
+
+    const base64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    const binary = atob(padded);
+    const json = decodeURIComponent(
+      Array.from(binary, (char) => `%${char.charCodeAt(0).toString(16).padStart(2, "0")}`).join("")
+    );
+    const payload = JSON.parse(json) as { exp?: number };
+    return typeof payload.exp === "number" ? payload.exp : 0;
+  } catch {
+    return 0;
+  }
+};
 
 export default function AdminPage() {
   const [key, setKey] = useState("");
@@ -29,6 +50,8 @@ export default function AdminPage() {
   const [stats, setStats] = useState<VisitorStats | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sessionExpiresAt, setSessionExpiresAt] = useState<number | null>(null);
+  const [timeLeftMs, setTimeLeftMs] = useState<number>(0);
 
   const readStoredToken = () => {
     if (typeof window === "undefined") {
@@ -52,7 +75,10 @@ export default function AdminPage() {
       }
 
       const json = JSON.parse(body) as VisitorStats;
+      const expiresAt = mode === "token" ? decodeAdminTokenExpiry(tokenOrKey) || Date.now() + ADMIN_SESSION_TTL_MS : Date.now() + ADMIN_SESSION_TTL_MS;
       setStats(json);
+      setSessionExpiresAt(expiresAt);
+      setTimeLeftMs(Math.max(expiresAt - Date.now(), 0));
       setGeneratedUrl("");
 
       if (typeof window !== "undefined") {
@@ -61,6 +87,8 @@ export default function AdminPage() {
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить статистику");
       setStats(null);
+      setSessionExpiresAt(null);
+      setTimeLeftMs(0);
     } finally {
       setLoading(false);
     }
@@ -79,6 +107,25 @@ export default function AdminPage() {
       void loadStats(savedToken, "token");
     }
   }, []);
+
+  useEffect(() => {
+    if (!sessionExpiresAt) {
+      return;
+    }
+
+    const tick = () => {
+      const remaining = sessionExpiresAt - Date.now();
+      setTimeLeftMs(Math.max(remaining, 0));
+
+      if (remaining <= 0) {
+        logout();
+      }
+    };
+
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [sessionExpiresAt]);
 
   const deviceEntries = useMemo(() => Object.entries(stats?.devices ?? {}), [stats]);
   const countryEntries = useMemo(() => Object.entries(stats?.countries ?? {}), [stats]);
@@ -147,7 +194,26 @@ export default function AdminPage() {
     setStats(null);
     setKey("");
     setError("");
+    setSessionExpiresAt(null);
+    setTimeLeftMs(0);
   };
+
+  const formattedTimeLeft = (() => {
+    const totalSeconds = Math.max(Math.ceil(timeLeftMs / 1000), 0);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${seconds}s`;
+    }
+
+    if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    }
+
+    return `${seconds}s`;
+  })();
 
   if (stats && !error) {
     return (
@@ -159,13 +225,18 @@ export default function AdminPage() {
               <h1 className="mt-2 text-3xl font-bold">Аналитика посещений</h1>
             </div>
 
-            <button
-              type="button"
-              className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-slate-200 hover:border-slate-500"
-              onClick={logout}
-            >
-              Выйти
-            </button>
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                TTL: {formattedTimeLeft}
+              </div>
+              <button
+                type="button"
+                className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-slate-200 hover:border-slate-500"
+                onClick={logout}
+              >
+                Выйти
+              </button>
+            </div>
           </div>
 
           <section className="grid gap-4 md:grid-cols-4">

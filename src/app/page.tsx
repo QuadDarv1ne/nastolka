@@ -693,9 +693,6 @@ function HeaderBar({
           <Button variant="ghost" size="sm" className="size-8 p-0 sm:size-10" onClick={toggle} aria-label={t(lang, "themeDark")}>
             {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </Button>
-          <Button variant="ghost" size="sm" className="size-8 p-0 sm:size-10" onClick={() => window.location.assign("/admin")} aria-label="Admin panel">
-            <Shield className="size-4" />
-          </Button>
           <Button variant="outline" size="sm" className="h-8 px-2 sm:h-10" onClick={onShowRules}>
             <Info className="size-4" />
             <span className="hidden sm:inline">{t(lang, "rules")}</span>
@@ -1793,6 +1790,13 @@ export default function Home() {
         </AnimatePresence>
 
         <main className="main-stage safe-x flex w-full max-w-5xl flex-1 flex-col items-center justify-center py-5 sm:py-8">
+          <button
+            type="button"
+            onClick={() => window.location.assign("/admin")}
+            aria-label="Admin panel"
+            title="Admin panel"
+            className="fixed bottom-3 right-3 z-50 h-3.5 w-3.5 rounded-full border border-transparent bg-transparent opacity-5 shadow-none transition-all duration-200 hover:opacity-100 hover:border-cyan-400/60 hover:bg-cyan-500/10 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
+          />
           <AnimatePresence mode="wait">
             {/* ─────────── SETUP ─────────── */}
             {state.phase === "setup" && (
