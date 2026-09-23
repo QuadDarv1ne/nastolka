@@ -23,6 +23,7 @@ import {
   PartyPopper,
   ArrowRight,
   RefreshCw,
+  Repeat,
   Sun,
   Moon,
   Volume2,
@@ -912,6 +913,41 @@ function PointsBadge({ state }: { state: State }) {
 }
 
 /** Кнопки фишек команды — показываются в раунде */
+/**
+ * Карточка «Повтор раунда» — фишка соперников во время чужого раунда:
+ * отгаданное слово не засчитывается, раунд начнётся заново с −10 сек.
+ * Показывается только если фишка ещё не потрачена.
+ */
+function ReplayChipCard({ state, onReplay, lang }: { state: State; onReplay: () => void; lang: Lang }) {
+  const replayLeft = state.teams.find((t) => t.chips.replay > 0)?.chips.replay ?? 0
+  // Карточка показывает фишку текущей команды-наблюдателя: если у МЕНЯ фишки нет — не показываем
+  // (упрощённо: показываем только когда у какой-то команды-наблюдателя фишка есть; владелец решает сам)
+  if (replayLeft <= 0) return null
+  return (
+    <div className="mt-3 flex w-full max-w-2xl items-center gap-3 rounded-2xl bg-linear-to-r from-violet-500/15 via-fuchsia-500/15 to-pink-500/15 p-3 ring-1 ring-violet-500/30">
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-linear-to-br from-violet-500 to-fuchsia-600 text-white shadow">
+        <Repeat className="h-5 w-5" strokeWidth={2.4} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-bold">
+          {t(lang, "replayChipTitle")} · {t(lang, "replayChipBadge")}
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {t(lang, "replayChipHint")}
+        </div>
+      </div>
+      <Button
+        size="sm"
+        variant="secondary"
+        className="shrink-0 font-bold"
+        onClick={onReplay}
+      >
+        {t(lang, "replayChipTitle")}
+      </Button>
+    </div>
+  )
+}
+
 function ChipsBar({ state, dispatch, locked }: { state: State; dispatch: (a: Action) => void; locked?: boolean }) {
   const { t, lang } = useI18n()
   const chips = state.teams[state.activeTeam]?.chips
@@ -1393,6 +1429,8 @@ export default function Home() {
   const [mpError, setMpError] = useState<string | null>(null)
   /** Номер моей команды в мультиплеере (назначается сервером; null — офлайн) */
   const [myTeamIndex, setMyTeamIndex] = useState<number | null>(null)
+  /** Зеркало myTeamIndex для колбэков сокета (без перерегистрации обработчиков) */
+  const myTeamIndexRef = useRef<number | null>(null)
   /** Мой socketId — для сопоставления team-assigned/team-reassigned с собой */
   const mpSocketIdRef = useRef<string | null>(null)
   /** true, когда disconnect() вызван ourselves (кнопка/замена connection), а не сервером */
@@ -1445,11 +1483,12 @@ export default function Home() {
         parsed.multiplier = parsed.multiplier ?? 1
         parsed.lastRoundBasePoints = parsed.lastRoundBasePoints ?? 0
         parsed.lastRoundMultiplier = parsed.lastRoundMultiplier ?? 1
-        // Миграция: добавляем chips командам, если их нет (старые сейвы)
+        // Миграция: добавляем chips командам, если их нет (старые сейвы),
+        // и фишку replay командам из старых сейвов, где её ещё не было
         if (parsed.teams) {
           parsed.teams = parsed.teams.map((t) => ({
             ...t,
-            chips: t.chips ?? initialChips(),
+            chips: { ...initialChips(), ...t.chips, replay: t.chips?.replay ?? 1 },
           }))
         }
         dispatch({ type: "HYDRATE", state: { ...initialState, ...parsed } as State })
@@ -1458,11 +1497,11 @@ export default function Home() {
       // Если активной игры нет — восстанавливаем настройки setup
       const s = readJson<Partial<State>>(SETTINGS_STORAGE_KEY)
       if (s) {
-        const restoredTeams = (s.teams && s.teams.length >= 2 ? s.teams : initialState.teams).map((t) => ({
-          ...t,
-          chips: t.chips ?? initialChips(),
-          score: 0, // на setup всегда обнуляем
-        }))
+          const restoredTeams = (s.teams && s.teams.length >= 2 ? s.teams : initialState.teams).map((t) => ({
+            ...t,
+            chips: { ...initialChips(), ...t.chips, replay: t.chips?.replay ?? 1 },
+            score: 0, // на setup всегда обнуляем
+          }))
         dispatch({
           type: "HYDRATE",
           state: {
@@ -1494,6 +1533,7 @@ export default function Home() {
       mpRoleRef.current = role
       mpSyncModeRef.current = syncMode
       mpSocketIdRef.current = client.socketId ?? null
+      myTeamIndexRef.current = teamIndex
       setMyTeamIndex(teamIndex)
       setMpStatus("connected")
       setMpError(null)
@@ -1516,26 +1556,36 @@ export default function Home() {
       })
       // Слушаем запросы состояния от новых участников
       client.on('state-requested', (payload) => {
-        // В режиме host отвечает только хост: запертый гость может держать
-        // устаревшее состояние, и новый участник получил бы его последним.
-        if (mpSyncModeRef.current === "host" && mpRoleRef.current === "guest") return
+        // Отвечает владелец текущего раунда (в режиме host) — у него самое
+        // актуальное состояние. Если раунд ещё не начался (setup/ready),
+        // отвечает хост комнаты.
+        if (mpSyncModeRef.current === "host") {
+          const s = stateRef.current
+          const isRoundOwner = myTeamIndexRef.current !== null && s.activeTeam === myTeamIndexRef.current
+          const isHostEarly = mpRoleRef.current === "host" && (s.phase === "setup" || s.phase === "ready")
+          if (!isRoundOwner && !isHostEarly) return
+        }
         // Отправляем наше состояние новому участнику
         client.sendStateTo(payload.from, stateRef.current)
       })
       client.on('peer-joined', (payload) => setMpMembers(payload.members))
       client.on('peer-left', (payload) => setMpMembers(payload.members))
       // Назначение/перемешивание команд (при полном лобби 4/4 сервер рандомизирует)
+      const changeTeam = (teamIndex: number | null) => {
+        myTeamIndexRef.current = teamIndex
+        setMyTeamIndex(teamIndex)
+      }
       client.on('team-assigned', (payload) => {
         setMpMembers(payload.members)
         if (payload.memberId && mpSocketIdRef.current && payload.memberId === mpSocketIdRef.current) {
-          setMyTeamIndex(payload.teamIndex)
+          changeTeam(payload.teamIndex)
         }
       })
-      client.on('team-reassigned', (payload) => setMyTeamIndex(payload.teamIndex))
+      client.on('team-reassigned', (payload) => changeTeam(payload.teamIndex))
       client.on('team-reassigned-all', (payload) => {
         setMpMembers(payload.members)
         const mine = payload.assignments?.find((a) => a.id === mpSocketIdRef.current)
-        if (mine) setMyTeamIndex(mine.teamIndex)
+        if (mine) changeTeam(mine.teamIndex)
       })
       // Обрыв связи: сервер упал / сменился Wi-Fi /socket закрылся сам.
       // С reconnection:false переподключения не будет — показываем состояние.
@@ -1547,7 +1597,7 @@ export default function Home() {
         mpRoleRef.current = null
         mpSyncModeRef.current = null
         mpSocketIdRef.current = null
-        setMyTeamIndex(null)
+        changeTeam(null)
         setMpRoom(null)
         setMpMembers(1)
         setMpStatus(intentional ? "disconnected" : "error")
@@ -1576,6 +1626,7 @@ export default function Home() {
     mpRoleRef.current = null
     mpSyncModeRef.current = null
     mpSocketIdRef.current = null
+    myTeamIndexRef.current = null
     setMyTeamIndex(null)
     setMpRoom(null)
     setMpMembers(1)
@@ -1606,11 +1657,17 @@ export default function Home() {
     if (state === lastRemoteStateRef.current) return  // это и есть только что полученное состояние (детерминированная защита от эха)
     if (!mpClientRef.current) return
     if (state.phase === "setup") return  // не синхронизируем setup
-    // В режиме host: только хост отправляет состояние (гости только слушают)
-    // В режиме sync: любой отправляет
-    if (mpSyncModeRef.current === "host" && mpRoleRef.current !== "host") return
+    // В режиме host состояние отправляет владелец раунда (activeTeam === myTeamIndex).
+    // Если активный игрок вышел из комнаты (activeTeam >= участников) — состояние
+    // подхватывает хост, чтобы игра не зависла.
+    // В режиме sync отправляет любой участник.
+    if (mpSyncModeRef.current === "host") {
+      const isRoundOwner = myTeamIndex !== null && state.activeTeam === myTeamIndex
+      const isHostFallback = mpRoleRef.current === "host" && state.activeTeam >= mpMembers
+      if (!isRoundOwner && !isHostFallback) return
+    }
     mpClientRef.current.sendState(state)
-  }, [state, mpStatus, hydrated])
+  }, [state, mpStatus, hydrated, myTeamIndex, mpMembers])
 
   // ─── Мультиплеер: кто может действовать ───
   // В режиме host каждый игрок играет только раунды СВОЕЙ команды
@@ -1696,6 +1753,16 @@ export default function Home() {
       }
     }
   }, [state, hydrated])
+
+  /* Повтор раунда: применяет фишку replay от лица моей команды (наблюдателя) */
+  const handleReplayRound = useCallback(() => {
+    if (myTeamIndex === null) return
+    const myChips = stateRef.current.teams[myTeamIndex]?.chips
+    if (!myChips || myChips.replay <= 0) return
+    playChipPlus5() // звук фишки
+    hapticChip()
+    dispatch({ type: "REPLAY_ROUND", byTeam: myTeamIndex })
+  }, [myTeamIndex])
 
   /* Бросок кубика: запускаем анимацию, через 1.4с — фиксируем результат */
   const rollTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -2032,6 +2099,16 @@ export default function Home() {
                       word: freshPicker.next(),
                       stealTeam,
                     })
+                    // Хост отправляет инфу о командах на сервер — для списка лобби
+                    if (mpClientRef.current) {
+                      try {
+                        mpClientRef.current.sendMeta({
+                          teams: teams.map((tm) => ({ name: tm.name, emoji: tm.emoji })),
+                        })
+                      } catch {
+                        // ignore
+                      }
+                    }
                   }}
                 />
               </motion.div>
@@ -2367,6 +2444,9 @@ export default function Home() {
                   {/* Фишки команды (×2, +10 сек, +5 сек) */}
                   {!state.paused && <ChipsBar state={state} dispatch={dispatch} locked={!canAct} />}
 
+                  {/* Повтор раунда: карточка для наблюдателей (соперников) */}
+                  {isWatchingOpponent && !state.paused && <ReplayChipCard state={state} onReplay={handleReplayRound} lang={lang} />}
+
                   <div className="mt-4 grid grid-cols-2 gap-3 sm:mt-6">
                     <Button
                       size="lg"
@@ -2523,6 +2603,8 @@ export default function Home() {
                       {t(lang, "undoRound")}
                     </button>
                   )}
+                  {/* Повтор раунда: карточка для соперников на результате раунда */}
+                  {isWatchingOpponent && <ReplayChipCard state={state} onReplay={handleReplayRound} lang={lang} />}
                   {/* Кнопка Кража хода — только если у текущей команды есть фишка */}
                   {state.teams[state.activeTeam]?.chips.stealTurn > 0 && (
                     <Button
@@ -2743,6 +2825,7 @@ export default function Home() {
         members={mpMembers}
         errorMessage={mpError}
         roomCode={mpRoom}
+        myTeamIndex={myTeamIndex}
         lang={lang}
       />
       <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />
