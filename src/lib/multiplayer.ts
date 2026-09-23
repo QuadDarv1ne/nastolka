@@ -263,7 +263,7 @@ export async function createRoom(syncMode: "host" | "sync" = "host"): Promise<Mu
 }
 
 /** Присоединиться к комнате по коду. teamIndex/syncMode приходит от сервера. */
-export async function joinRoom(code: string): Promise<MultiplayerClient & { teamIndex: number; syncMode: "host" | "sync"; reconnected: boolean }> {
+export async function joinRoom(code: string): Promise<MultiplayerClient & { code: string; teamIndex: number; syncMode: "host" | "sync"; reconnected: boolean }> {
   const socket = await connect()
   return new Promise((resolve, reject) => {
     let settled = false
