@@ -52,6 +52,16 @@ const writeLog = (event: string, details: Record<string, unknown>) => {
   }
 }
 
+/** Профиль участника: имя игрока + характеристики устройства (от клиента) */
+interface MemberProfile {
+  name: string
+  deviceType: string
+  os: string
+  browser: string
+  model: string
+  lang: string
+}
+
 /** Информация о комнате для реестра и списка лобби */
 interface RoomInfo {
   code: string
@@ -59,6 +69,8 @@ interface RoomInfo {
   syncMode: 'host' | 'sync'
   /** socketId → teamIndex (какой командой играет участник) */
   teamAssignments: Map<string, number>
+  /** socketId → профиль участника (имя + устройство) */
+  memberInfo: Map<string, MemberProfile>
   /** Инфа о командах от хоста (имена/эмодзи) — для списка лобби */
   teamInfo: { name: string; emoji: string }[]
   /** Статус комнаты для списка лобби: лобби (setup) или в игре */
@@ -71,6 +83,31 @@ const rooms = new Map<string, RoomInfo>()
 // socketId → roomCode (для быстрого выхода)
 const socketToRoom = new Map<string, string>()
 
+/** Участник комнаты: профиль + команда (публичный вид без socketId) */
+const roomMembers = (room: RoomInfo) =>
+  Array.from(room.teamAssignments.entries())
+    .sort((a, b) => a[1] - b[1])
+    .map(([id, teamIndex]) => ({
+      id,
+      teamIndex,
+      profile: room.memberInfo.get(id) || { name: 'Игрок', deviceType: 'unknown', os: 'unknown', browser: 'unknown', model: 'unknown', lang: 'ru' },
+    }))
+
+/** Нормализовать профиль от клиента (защита от мусора) */
+const normalizeProfile = (profile: unknown): MemberProfile => {
+  const p = (profile || {}) as Partial<MemberProfile>
+  const str = (v: unknown, fallback: string, max = 40) =>
+    typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : fallback
+  return {
+    name: str(p.name, 'Игрок'),
+    deviceType: str(p.deviceType, 'unknown', 10),
+    os: str(p.os, 'unknown', 20),
+    browser: str(p.browser, 'unknown', 20),
+    model: str(p.model, 'unknown', 30),
+    lang: str(p.lang, 'ru', 5),
+  }
+}
+
 /** Публичное описание комнаты для списка лобби (без socketId) */
 const lobbyView = (room: RoomInfo) => ({
   code: room.code,
@@ -80,6 +117,8 @@ const lobbyView = (room: RoomInfo) => ({
   teams: room.teamInfo,
   status: room.status,
   createdAt: room.createdAt,
+  /** Участники комнаты с профилями устройств (кто сидит в лобби) */
+  players: roomMembers(room).map(({ teamIndex, profile }) => ({ teamIndex, profile })),
 })
 
 /** Список всех комнат для списка лобби */
@@ -153,12 +192,14 @@ const leaveRoom = (socketId: string, notify = true) => {
     // Какой командой играл выходящий — чтобы клиенты могли завершить игру
     const teamIndex = room.teamAssignments.get(socketId) ?? -1
     room.teamAssignments.delete(socketId)
+    room.memberInfo.delete(socketId)
     if (room.teamAssignments.size === 0) {
       rooms.delete(roomCode)
       console.log(`[room ${roomCode}] emptied, removed`)
       broadcastLobbiesChanged()
     } else if (notify) {
       io.to(roomCode).emit('peer-left', { id: socketId, members: room.teamAssignments.size, teamIndex })
+      io.to(roomCode).emit('members-list', { members: roomMembers(room) })
       console.log(`[room ${roomCode}] ${socketId} left (team ${teamIndex}, now ${room.teamAssignments.size})`)
       broadcastLobbiesChanged()
     }
@@ -177,13 +218,14 @@ io.on('connection', (socket) => {
   })
 
   // Создать новую комнату (syncMode задаёт хост)
-  socket.on('create-room', ({ syncMode }: { syncMode?: 'host' | 'sync' }) => {
+  socket.on('create-room', ({ syncMode, profile }: { syncMode?: 'host' | 'sync'; profile?: unknown }) => {
     leaveRoom(socket.id)
     const code = generateRoomCode()
     const room: RoomInfo = {
       code,
       syncMode: syncMode === 'sync' ? 'sync' : 'host',
       teamAssignments: new Map([[socket.id, 0]]), // хост — команда 0
+      memberInfo: new Map([[socket.id, normalizeProfile(profile)]]),
       teamInfo: [],
       status: 'lobby',
       createdAt: Date.now(),
@@ -192,13 +234,25 @@ io.on('connection', (socket) => {
     socketToRoom.set(socket.id, code)
     socket.join(code)
     socket.emit('room-created', { code, teamIndex: 0, syncMode: room.syncMode, members: 1 })
+    socket.emit('members-list', { members: roomMembers(room) })
     console.log(`[room ${code}] created by ${socket.id} (syncMode=${room.syncMode})`)
     writeLog('room-created', { socketId: socket.id, ip, room: code })
     broadcastLobbiesChanged()
   })
 
+  // Обновить свой профиль (переименование игрока)
+  socket.on('update-profile', ({ profile }: { profile?: unknown }) => {
+    const roomCode = socketToRoom.get(socket.id)
+    if (!roomCode) return
+    const room = rooms.get(roomCode)
+    if (!room) return
+    room.memberInfo.set(socket.id, normalizeProfile(profile))
+    io.to(roomCode).emit('members-list', { members: roomMembers(room) })
+    broadcastLobbiesChanged()
+  })
+
   // Присоединиться к существующей комнате
-  socket.on('join-room', ({ code }: { code: string }) => {
+  socket.on('join-room', ({ code, profile }: { code: string; profile?: unknown }) => {
     const upper = (code || '').toUpperCase().trim()
     const room = rooms.get(upper)
     if (!room) {
@@ -212,6 +266,7 @@ io.on('connection', (socket) => {
     leaveRoom(socket.id)
     const teamIndex = nextTeamIndex(room)
     room.teamAssignments.set(socket.id, teamIndex)
+    room.memberInfo.set(socket.id, normalizeProfile(profile))
     socketToRoom.set(socket.id, upper)
     socket.join(upper)
     const members = room.teamAssignments.size
@@ -219,7 +274,13 @@ io.on('connection', (socket) => {
     // а не выбирает сам (иначе режимы расходятся и состояния воюют).
     socket.emit('room-joined', { code: upper, members, teamIndex, syncMode: room.syncMode })
     // Сообщить остальным, что присоединился новый участник и какой командой он играет
-    socket.to(upper).emit('peer-joined', { id: socket.id, members, teamIndex })
+    socket.to(upper).emit('peer-joined', {
+      id: socket.id,
+      members,
+      teamIndex,
+      profile: room.memberInfo.get(socket.id)!,
+    })
+    io.to(upper).emit('members-list', { members: roomMembers(room) })
     io.to(upper).emit('team-assigned', { memberId: socket.id, teamIndex, members })
     // При полном лобби (4/4) — рандомизируем распределение команд
     if (members === MAX_MEMBERS) {

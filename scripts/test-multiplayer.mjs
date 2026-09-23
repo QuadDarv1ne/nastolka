@@ -69,7 +69,7 @@ for (const s of sockets) {
 }
 
 /* ─── Шаг 1: создание комнаты и присвоение команд по порядку ─── */
-A.on("connect", () => A.emit("create-room", { syncMode: "host" }));
+A.on("connect", () => A.emit("create-room", { syncMode: "host", profile: { name: "Максим", deviceType: "phone", os: "Android", browser: "Chrome", model: "Pixel 8", lang: "ru" } }));
 const createdA = await once(A, "room-created");
 if (!createdA.code || createdA.code.length !== 4) fail("create-room", `код некорректен: ${createdA.code}`);
 if (createdA.teamIndex !== 0) fail("create-room", `хост должен получить teamIndex=0, получено ${createdA.teamIndex}`);
@@ -77,8 +77,17 @@ if (createdA.syncMode !== "host") fail("create-room", `syncMode должен б�
 ok(`комната создана ${createdA.code}, хост = команда 0 (syncMode=${createdA.syncMode})`);
 const code = createdA.code;
 
+// Сразу после создания приходит members-list с профилем хоста
+const hostList = await once(A, "members-list");
+const hostMember = (hostList.members || []).find((m) => m.teamIndex === 0);
+if (!hostMember || hostMember.profile?.name !== "Максим") {
+  fail("members-list", `профиль хоста не пришёл: ${JSON.stringify(hostList)}`);
+}
+ok("members-list: профиль хоста (Максим, Pixel 8 · Android)");
+
 const peerJoinedP = once(A, "peer-joined");
-B.emit("join-room", { code });
+const membersAfterJoinP = once(A, "members-list");
+B.emit("join-room", { code, profile: { name: "Оля", deviceType: "desktop", os: "Windows", browser: "Firefox", model: "ПК", lang: "ru" } });
 const joinedB = await once(B, "room-joined");
 if (joinedB.members !== 2) fail("room-joined", `ожидалось members=2, получено ${joinedB.members}`);
 if (joinedB.teamIndex !== 1) fail("присвоение команд", `B должен получить teamIndex=1, получено ${joinedB.teamIndex}`);
@@ -86,7 +95,11 @@ if (joinedB.syncMode !== "host") fail("syncMode от сервера", `гост�
 ok("B присоединился, teamIndex=1, syncMode=host (от сервера)");
 const peerJoined = await peerJoinedP;
 if (peerJoined.teamIndex !== 1) fail("peer-joined", `в payload должен быть teamIndex=1, получено ${peerJoined.teamIndex}`);
-ok("A получил peer-joined (teamIndex=1)");
+if (peerJoined.profile?.name !== "Оля") fail("peer-joined", `профиль не пришёл: ${JSON.stringify(peerJoined.profile)}`);
+ok("A получил peer-joined (teamIndex=1, профиль Оля)");
+const membersAfterJoin = await membersAfterJoinP;
+if ((membersAfterJoin.members || []).length !== 2) fail("members-list", `ожидались 2 участника: ${JSON.stringify(membersAfterJoin)}`);
+ok("members-list: 2 участника с профилями");
 
 /* ─── Шаг 2: ретрансляция state-update A → B ─── */
 const stateP = once(B, "state-update");
@@ -157,14 +170,28 @@ if (!found) fail("список лобби", `комната ${code} не най�
 if (found.members !== 4) fail("список лобби", `members должно быть 4, получено ${found.members}`);
 if (found.status !== "playing") fail("список лобби", `status должно быть playing (после state-update), получено ${found.status}`);
 if (found.syncMode !== "host") fail("список лобби", `syncMode должен быть host, получено ${found.syncMode}`);
-ok(`список лобби: комната ${code} видна (4/4, playing, host)`);
+const playerNames = (found.players || []).map((p) => p.profile?.name);
+if (!playerNames.includes("Максим") || !playerNames.includes("Оля")) {
+  fail("список лобби", `профили игроков не пришли: ${JSON.stringify(found.players)}`);
+}
+ok(`список лобби: комната ${code} видна (4/4, playing, host, профили: ${playerNames.join(", ")})`);
 
-/* ─── Шаг 8: выход участника обновляет список лобби и peer-left ─── */
+/* ─── Шаг 8: выход участника — peer-left с teamIndex + members-list ─── */
 const peerLeftP = once(A, "peer-left");
 D.disconnect();
 const peerLeft = await peerLeftP;
 if (peerLeft.members !== 3) fail("peer-left", `ожидалось members=3, получено ${peerLeft.members}`);
-ok("A получил peer-left после выхода D (members=3)");
+if (typeof peerLeft.teamIndex !== "number" || peerLeft.teamIndex < 0) {
+  fail("peer-left teamIndex", `teamIndex отсутствует: ${JSON.stringify(peerLeft)}`);
+}
+ok(`A получил peer-left после выхода D (members=3, teamIndex=${peerLeft.teamIndex})`);
+
+/* ─── Шаг 9: выход последнего соперника — teamIndex корректен для каждого ─── */
+const bLeftP = once(A, "peer-left");
+B.disconnect();
+const bLeft = await bLeftP;
+if (bLeft.members !== 2) fail("peer-left B", `ожидалось members=2, получено ${bLeft.members}`);
+ok(`B вышел с teamIndex=${bLeft.teamIndex} (members=2)`);
 
 clearTimeout(overallTimer);
 finish();

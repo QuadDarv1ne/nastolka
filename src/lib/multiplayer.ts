@@ -8,7 +8,114 @@
 // подключается потом как upgrade, если провайдер поддерживает.
 
 import type { State } from "@/lib/types"
-import { readItem, removeItem, writeItem } from "@/lib/storage"
+import { readItem, writeItem, removeItem } from "@/lib/storage"
+
+/** Профиль участника: имя игрока + характеристики устройства */
+export interface MemberProfile {
+  /** Имя игрока (вводит сам; сохраняется в localStorage) */
+  name: string
+  /** Тип устройства: phone / tablet / desktop */
+  deviceType: "phone" | "tablet" | "desktop" | "unknown"
+  /** ОС: iOS / Android / Windows / macOS … */
+  os: string
+  /** Браузер: Safari / Chrome … */
+  browser: string
+  /** Модель устройства (iPhone / iPad / ПК), если определилась */
+  model: string
+  /** Язык интерфейса браузера */
+  lang: string
+}
+
+/** Ключ localStorage с именем игрока */
+const MP_NAME_STORAGE_KEY = "nastolka-mp-name-v1"
+
+/** Прочитать сохранённое имя игрока */
+export function getPlayerName(): string {
+  if (typeof window === "undefined") return ""
+  return (readItem(MP_NAME_STORAGE_KEY) || "").trim()
+}
+
+/** Сохранить имя игрока */
+export function setPlayerName(name: string) {
+  if (typeof window === "undefined") return
+  writeItem(MP_NAME_STORAGE_KEY, name.trim())
+}
+
+/** Определить характеристики устройства из navigator/userAgent */
+export function detectDeviceInfo(): Omit<MemberProfile, "name"> {
+  if (typeof window === "undefined") {
+    return { deviceType: "unknown", os: "unknown", browser: "unknown", model: "unknown", lang: "ru" }
+  }
+  const ua = navigator.userAgent || ""
+  const lang = (navigator.language || "ru").split("-")[0]
+
+  const isTablet = /ipad|tablet|playbook|silk/i.test(ua) || (/android/i.test(ua) && !/mobile/i.test(ua))
+  const isPhone = /iphone|ipod|android.*mobile|windows phone|mobile/i.test(ua)
+  const deviceType: MemberProfile["deviceType"] = isTablet
+    ? "tablet"
+    : isPhone
+      ? "phone"
+      : /windows|macintosh|linux|cros/i.test(ua)
+        ? "desktop"
+        : "unknown"
+
+  const os = /windows phone/i.test(ua)
+    ? "Windows Phone"
+    : /windows/i.test(ua)
+      ? "Windows"
+      : /iphone|ipad|ipod/i.test(ua)
+        ? "iOS"
+        : /android/i.test(ua)
+          ? "Android"
+          : /mac os x|macintosh/i.test(ua)
+            ? "macOS"
+            : /cros/i.test(ua)
+              ? "ChromeOS"
+              : /linux/i.test(ua)
+                ? "Linux"
+                : "unknown"
+
+  const browser = /edg\//i.test(ua)
+    ? "Edge"
+    : /opr\//i.test(ua)
+      ? "Opera"
+      : /samsungbrowser/i.test(ua)
+        ? "Samsung Internet"
+        : /firefox\/|fxios/i.test(ua)
+          ? "Firefox"
+          : /chrome\/|crios/i.test(ua)
+            ? "Chrome"
+            : /safari\//i.test(ua)
+              ? "Safari"
+              : "unknown"
+
+  // Модель: iPhone/iPad выцепляем из UA; Android-модель — сегмент перед скобкой
+  let model = "unknown"
+  if (/iPhone/i.test(ua)) model = "iPhone"
+  else if (/iPad/i.test(ua)) model = "iPad"
+  else if (/iPod/i.test(ua)) model = "iPod"
+  else if (deviceType === "desktop") model = os === "unknown" ? "ПК" : os
+  else {
+    // Android: "Android 14; K; Pixel 8" — модель обычно последним сегментом
+    const androidPart = ua.slice(ua.indexOf("Android"), ua.indexOf(")") > 0 ? ua.indexOf(")") : ua.length)
+    const segments = androidPart.split(";").map((s) => s.trim()).slice(1)
+    // Отбрасываем локали (ru-RU) и маркеры сборки (K, wv)
+    const candidates = segments.filter((p) => p && !/^[a-z]{2}-[a-z]{2}$/i.test(p) && !/^(k|wv)$/i.test(p))
+    model = candidates[candidates.length - 1] || "Android"
+  }
+
+  return { deviceType, os, browser, model, lang }
+}
+
+/** Собрать полный профиль участника (имя + устройство) */
+export function buildMemberProfile(): MemberProfile {
+  const name = getPlayerName()
+  const info = detectDeviceInfo()
+  return {
+    name: name || `${info.model} · ${info.os}`,
+    ...info,
+  }
+}
 
 export interface MultiplayerClient {
   disconnect: () => void
@@ -41,14 +148,18 @@ export interface LobbyInfo {
   teams: { name: string; emoji: string }[]
   status: "lobby" | "playing"
   createdAt: number
+  /** Участники комнаты (имена + устройства) */
+  players: { teamIndex: number; profile: MemberProfile }[]
 }
 
 export interface MultiplayerEvents {
   'room-created': { code: string; teamIndex: number; syncMode: "host" | "sync"; members: number }
   'room-joined': { code: string; members: number; teamIndex: number; syncMode: "host" | "sync" }
   'room-error': { message: string }
-  'peer-joined': { id: string; members: number; teamIndex: number }
-  'peer-left': { id: string; members: number }
+  'peer-joined': { id: string; members: number; teamIndex: number; profile: MemberProfile }
+  'peer-left': { id: string; members: number; teamIndex: number }
+  /** Полный список участников комнаты с профилями (после входа/выхода/переименования) */
+  'members-list': { members: RoomMember[] }
   'state-update': { from: string; state: State }
   'state-requested': { from: string }
   'pong-test': { time: number }
@@ -67,6 +178,13 @@ export interface MultiplayerEvents {
   'server-disconnect': { reason: string }
   /** Ошибка повторного подключения после обрыва */
   'reconnect-error': { message: string }
+}
+
+/** Участник комнаты: профиль + назначенная команда */
+export interface RoomMember {
+  id: string
+  teamIndex: number
+  profile: MemberProfile
 }
 
 const CONNECT_TIMEOUT_MS = 15000  // больше времени на handshake через прокси
@@ -93,7 +211,7 @@ export async function createRoom(syncMode: "host" | "sync" = "host"): Promise<Mu
     const timeout = setTimeout(() => fail(new Error('Сервер не ответил за 15 сек. Проверьте, что мини-сервис запущен на порту 3003.')), CONNECT_TIMEOUT_MS)
     socket.on('connect_error', (err: Error) => fail(new Error(`Ошибка подключения: ${err.message}`)))
     // connect() уже дожидается подключения, но на случай reconnect — обрабатываем оба варианта
-    const start = () => socket.emit('create-room', { syncMode })
+    const start = () => socket.emit('create-room', { syncMode, profile: buildMemberProfile() })
     if (socket.connected) start()
     else socket.on('connect', start)
     socket.on('room-created', (payload: { code: string; teamIndex: number; syncMode: "host" | "sync" }) => {
@@ -125,7 +243,7 @@ export async function joinRoom(code: string): Promise<MultiplayerClient & { team
     const timeout = setTimeout(() => fail(new Error('Сервер не ответил за 15 сек. Проверьте, что мини-сервис запущен на порту 3003.')), CONNECT_TIMEOUT_MS)
     socket.on('connect_error', (err: Error) => fail(new Error(`Ошибка подключения: ${err.message}`)))
     socket.on('connect', () => {
-      socket.emit('join-room', { code })
+      socket.emit('join-room', { code, profile: buildMemberProfile() })
     })
     socket.on('room-joined', (payload: { code: string; members: number; teamIndex: number; syncMode: "host" | "sync" }) => {
       if (settled) return

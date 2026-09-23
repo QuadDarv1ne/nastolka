@@ -24,6 +24,7 @@ import {
   ArrowRight,
   RefreshCw,
   Repeat,
+  LogOut,
   Sun,
   Moon,
   Volume2,
@@ -77,7 +78,7 @@ import { AchievementsDialog } from "@/components/achievements-dialog"
 import { MultiplayerDialog } from "@/components/multiplayer-dialog"
 import { SettingsDialog, isCountdownEnabled } from "@/components/settings-dialog"
 import { GameBoard } from "@/components/game-board"
-import type { MultiplayerClient } from "@/lib/multiplayer"
+import type { MultiplayerClient, RoomMember } from "@/lib/multiplayer"
 import {
   isMuted,
   playCorrect,
@@ -504,6 +505,58 @@ function makeReducer() {
         }
       }
 
+      /* Игрок команды teamIndex покинул мультиплеер: команда выбывает.
+       * Если осталась одна команда с игроком — она побеждает технически.
+       * Если раунд выбывшей команды шёл прямо сейчас — ход переходит дальше. */
+      case "ABANDON_TEAM": {
+        if (state.phase === "setup" || state.phase === "game_over") return state
+        const idx = action.teamIndex
+        if (typeof idx !== "number" || idx < 0 || idx >= state.teams.length) return state
+        if (state.abandonedTeams.includes(idx)) return state
+        const abandonedTeams = [...state.abandonedTeams, idx]
+        const remaining = state.teams.map((_, i) => i).filter((i) => !abandonedTeams.includes(i))
+        // Осталась одна команда с игроком — победа техническим нокаутом
+        if (remaining.length <= 1) {
+          return {
+            ...state,
+            abandonedTeams,
+            phase: "game_over",
+            winner: remaining[0] ?? null,
+            forfeit: true,
+            paused: false,
+            countdownSeconds: 0,
+          }
+        }
+        // Если раунд выбывшей команды идёт прямо сейчас — передаём ход дальше
+        if (idx === state.activeTeam) {
+          let nextTeam = (idx + 1) % state.teams.length
+          for (let i = 0; i < state.teams.length; i++) {
+            if (!abandonedTeams.includes(nextTeam)) break
+            nextTeam = (nextTeam + 1) % state.teams.length
+          }
+          return {
+            ...state,
+            abandonedTeams,
+            phase: "ready",
+            activeTeam: nextTeam,
+            currentMethod: null,
+            chosenMethodForChoice: null,
+            currentWord: null,
+            wordRevealed: false,
+            secondsLeft: state.roundSeconds,
+            lastRoundResult: null,
+            lastRoundPoints: 0,
+            lastRoundBasePoints: 0,
+            lastRoundMultiplier: 1,
+            multiplier: 1,
+            paused: false,
+            stealJustUsed: false,
+            countdownSeconds: 0,
+          }
+        }
+        return { ...state, abandonedTeams }
+      }
+
       case "NEXT_TURN": {
         const total = state.teams.length
         // Команды-пустышки (игрок вышел) пропускаются автоматически
@@ -785,12 +838,15 @@ function TeamScoreCard({
   active,
   target,
   index = 0,
+  abandoned = false,
 }: {
   team: Team
   active: boolean
   target: number
   /** Порядковый номер для каскадной анимации появления */
   index?: number
+  /** Игрок команды вышел из мультиплеера — команда выбыла */
+  abandoned?: boolean
 }) {
   const { t, lang } = useI18n()
   return (
@@ -805,7 +861,7 @@ function TeamScoreCard({
         transition={{ type: "spring", stiffness: 220, damping: 18 }}
         className={`team-card-inner relative overflow-hidden rounded-2xl bg-linear-to-br ${team.color} text-white shadow-xl sm:rounded-3xl ${
           active ? "pulse-active" : ""
-        }`}
+        } ${abandoned ? "opacity-40 saturate-50 grayscale" : ""}`}
       >
         <div className="team-card-emoji absolute -right-4 -top-6 select-none leading-none opacity-25">
           {team.emoji}
@@ -856,10 +912,12 @@ function TeamGrid({
   teams,
   activeTeam,
   target,
+  abandoned = [],
 }: {
   teams: Team[]
   activeTeam: number
   target: number
+  abandoned?: number[]
 }) {
   return (
     <div className="team-grid mb-6 w-full">
@@ -867,9 +925,10 @@ function TeamGrid({
         <TeamScoreCard
           key={i}
           team={team}
-          active={activeTeam === i}
+          active={activeTeam === i && !abandoned.includes(i)}
           target={target}
           index={i}
+          abandoned={abandoned.includes(i)}
         />
       ))}
     </div>
@@ -1434,6 +1493,8 @@ export default function Home() {
   const [mpRoom, setMpRoom] = useState<string | null>(null)
   const [mpMembers, setMpMembers] = useState(1)
   const [mpError, setMpError] = useState<string | null>(null)
+  /** Участники комнаты с профилями устройств (для списка в диалоге) */
+  const [mpRoomMembers, setMpRoomMembers] = useState<RoomMember[]>([])
   /** Номер моей команды в мультиплеере (назначается сервером; null — офлайн) */
   const [myTeamIndex, setMyTeamIndex] = useState<number | null>(null)
   /** Зеркало myTeamIndex для колбэков сокета (без перерегистрации обработчиков) */
@@ -1576,7 +1637,20 @@ export default function Home() {
         client.sendStateTo(payload.from, stateRef.current)
       })
       client.on('peer-joined', (payload) => setMpMembers(payload.members))
-      client.on('peer-left', (payload) => setMpMembers(payload.members))
+      // Полный список участников комнаты с профилями устройств
+      client.on('members-list', (payload) => {
+        if (Array.isArray(payload.members)) setMpRoomMembers(payload.members)
+      })
+      client.on('peer-left', (payload) => {
+        setMpMembers(payload.members)
+        // Игрок покинул комнату — его команда выбывает (победа оппоненту,
+        // если осталась одна; иначе ходы выбывшей команды пропускаются)
+        if (typeof payload.teamIndex === "number" && payload.teamIndex >= 0) {
+          isApplyingRemoteRef.current = true
+          dispatch({ type: "ABANDON_TEAM", teamIndex: payload.teamIndex })
+          setTimeout(() => { isApplyingRemoteRef.current = false }, 0)
+        }
+      })
       // Назначение/перемешивание команд (при полном лобби 4/4 сервер рандомизирует)
       const changeTeam = (teamIndex: number | null) => {
         myTeamIndexRef.current = teamIndex
@@ -1607,6 +1681,7 @@ export default function Home() {
         changeTeam(null)
         setMpRoom(null)
         setMpMembers(1)
+      setMpRoomMembers([])
         setMpStatus(intentional ? "disconnected" : "error")
         setMpError(intentional ? null : t(lang, "mpDisconnected"))
         if (!intentional && typeof console !== "undefined") {
@@ -1637,6 +1712,7 @@ export default function Home() {
     setMyTeamIndex(null)
     setMpRoom(null)
     setMpMembers(1)
+      setMpRoomMembers([])
     setMpStatus("disconnected")
     setMpError(null)
     if (client) {
@@ -1665,16 +1741,15 @@ export default function Home() {
     if (!mpClientRef.current) return
     if (state.phase === "setup") return  // не синхронизируем setup
     // В режиме host состояние отправляет владелец раунда (activeTeam === myTeamIndex).
-    // Если активный игрок вышел из комнаты (activeTeam >= участников) — состояние
-    // подхватывает хост, чтобы игра не зависла.
+    // Если активная команда выбыла (игрок вышел) — состояние подхватывает хост.
     // В режиме sync отправляет любой участник.
     if (mpSyncModeRef.current === "host") {
       const isRoundOwner = myTeamIndex !== null && state.activeTeam === myTeamIndex
-      const isHostFallback = mpRoleRef.current === "host" && state.activeTeam >= mpMembers
+      const isHostFallback = mpRoleRef.current === "host" && state.abandonedTeams.includes(state.activeTeam)
       if (!isRoundOwner && !isHostFallback) return
     }
     mpClientRef.current.sendState(state)
-  }, [state, mpStatus, hydrated, myTeamIndex, mpMembers])
+  }, [state, mpStatus, hydrated, myTeamIndex])
 
   // ─── Мультиплеер: кто может действовать ───
   // В режиме host каждый игрок играет только раунды СВОЕЙ команды
@@ -1689,13 +1764,14 @@ export default function Home() {
     state.activeTeam === myTeamIndex
   // Действия раунда доступны только владельцу раунда (или всем в sync/офлайн)
   const canAct = isMyTurn
-  // Хост-режим: активный игрок отключился (команд больше, чем участников)?
+  // Хост-режим: активная команда выбыла (игрок вышел) — хост подхватывает
+  // таймер и отправку состояния, чтобы игра не зависла
   const activePlayerMissing =
     isMpConnected &&
     mpSyncModeRef.current === "host" &&
     myTeamIndex !== null &&
     state.activeTeam !== myTeamIndex &&
-    state.activeTeam >= mpMembers
+    state.abandonedTeams.includes(state.activeTeam)
   // Наблюдатель в чужом раунде (для карточки «Повтор раунда»)
   const isWatchingOpponent =
     isMpConnected &&
@@ -2133,6 +2209,7 @@ export default function Home() {
                 <TeamGrid
                   teams={state.teams}
                   activeTeam={state.activeTeam}
+                  abandoned={state.abandonedTeams}
                   target={state.targetScore}
                 />
 
@@ -2179,6 +2256,7 @@ export default function Home() {
                 <TeamGrid
                   teams={state.teams}
                   activeTeam={state.activeTeam}
+                  abandoned={state.abandonedTeams}
                   target={state.targetScore}
                 />
 
@@ -2340,6 +2418,7 @@ export default function Home() {
                 <TeamGrid
                   teams={state.teams}
                   activeTeam={state.activeTeam}
+                  abandoned={state.abandonedTeams}
                   target={state.targetScore}
                 />
 
@@ -2649,6 +2728,12 @@ export default function Home() {
                   <div className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                     {t(lang, "winner")}
                   </div>
+                  {state.forfeit && (
+                    <div className="mx-auto mt-3 flex max-w-xs items-center justify-center gap-2 rounded-full bg-slate-500/15 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      <LogOut className="h-3.5 w-3.5" />
+                      {t(lang, "forfeitWin")}
+                    </div>
+                  )}
                   <h2 className="mt-1 wrap-break-word text-3xl font-black sm:text-4xl">
                     {state.teams[state.winner].emoji} {state.teams[state.winner].name}
                   </h2>
@@ -2833,6 +2918,7 @@ export default function Home() {
         errorMessage={mpError}
         roomCode={mpRoom}
         myTeamIndex={myTeamIndex}
+        roomMembers={mpRoomMembers}
         lang={lang}
       />
       <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />

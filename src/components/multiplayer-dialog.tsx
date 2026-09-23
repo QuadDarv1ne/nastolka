@@ -18,8 +18,11 @@ import {
   listLobbiesOnce,
   getManualMpUrl,
   setManualMpUrl,
+  getPlayerName,
+  setPlayerName,
   type MultiplayerClient,
   type LobbyInfo,
+  type RoomMember,
 } from "@/lib/multiplayer"
 import { t, type Lang } from "@/lib/i18n"
 
@@ -35,6 +38,8 @@ interface Props {
   roomCode?: string | null
   /** Моя команда в комнате (если подключены) */
   myTeamIndex?: number | null
+  /** Список участников комнаты с профилями устройств */
+  roomMembers?: RoomMember[]
   lang: Lang
 }
 
@@ -47,6 +52,8 @@ export function MultiplayerDialog({
   members,
   errorMessage,
   roomCode,
+  myTeamIndex,
+  roomMembers,
   lang,
 }: Props) {
   const [mode, setMode] = useState<"choose" | "create" | "join" | "lobbies">("choose")
@@ -60,9 +67,12 @@ export function MultiplayerDialog({
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [mpUrl, setMpUrl] = useState("")
   const [mpUrlSaved, setMpUrlSaved] = useState(false)
+  /** Имя игрока (сохраняется в localStorage, отправляется на сервер) */
+  const [playerName, setPlayerName] = useState("")
 
-  // Подтягиваем сохранённый адрес сервера (только на клиенте)
+  // Подтягиваем сохранённые имя и адрес сервера (только на клиенте)
   useEffect(() => {
+    setPlayerName(getPlayerName())
     setMpUrl(getManualMpUrl())
   }, [open])
 
@@ -81,6 +91,7 @@ export function MultiplayerDialog({
     setConnecting(true)
     setLocalError(null)
     try {
+      setPlayerName(playerName) // сохраняем имя перед подключением
       const client = await createRoom(syncMode)
       setCreatedCode(client.code)
       onConnect(client, "host", client.code, syncMode, client.teamIndex)
@@ -99,6 +110,7 @@ export function MultiplayerDialog({
     setConnecting(true)
     setLocalError(null)
     try {
+      setPlayerName(playerName) // сохраняем имя перед подключением
       // syncMode приходит от сервера (его задаёт хост комнаты), а не выбирается гостем
       const client = await joinRoom(normalized)
       onConnect(client, "guest", normalized, client.syncMode, client.teamIndex)
@@ -184,6 +196,39 @@ export function MultiplayerDialog({
                 <span className="font-mono font-bold">{roomCode || createdCode}</span>
               </div>
             )}
+            {myTeamIndex !== null && myTeamIndex !== undefined && (
+              <div className="mt-1 text-sm">
+                <span className="text-muted-foreground">{t(lang, "mpMyTeam")}: </span>
+                <span className="font-bold">{t(lang, "mpTeamAssigned")} #{myTeamIndex + 1}</span>
+              </div>
+            )}
+            {/* Список участников комнаты: кто какой командой играет и с какого устройства */}
+            {roomMembers && roomMembers.length > 0 && (
+              <div className="mt-3 space-y-1.5 text-left">
+                <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  {t(lang, "mpMembersTitle")}
+                </div>
+                {roomMembers.map((m) => (
+                  <div
+                    key={m.id}
+                    className="flex items-center gap-2.5 rounded-xl bg-card px-3 py-2"
+                  >
+                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-linear-to-br from-amber-400 to-orange-500 text-sm font-black text-white">
+                      {m.teamIndex + 1}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-bold">{m.profile.name}</div>
+                      <div className="truncate text-[11px] text-muted-foreground">
+                        {m.profile.model} · {m.profile.os} · {m.profile.browser}
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {m.profile.deviceType === "phone" ? "📱" : m.profile.deviceType === "tablet" ? "📲" : "💻"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -233,6 +278,23 @@ export function MultiplayerDialog({
 
         {status !== "connected" && mode === "choose" && (
           <div className="space-y-3">
+            {/* Имя игрока — видно другим участникам комнаты */}
+            <div>
+              <Label className="mb-1.5 block text-sm font-semibold">{t(lang, "mpPlayerName")}</Label>
+              <Input
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value.slice(0, 20))}
+                onBlur={() => setPlayerName(playerName)}
+                placeholder={t(lang, "mpPlayerNamePlaceholder")}
+                className="text-sm"
+                maxLength={20}
+                autoCapitalize="words"
+              />
+              <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                {t(lang, "mpPlayerNameHint")}
+              </p>
+            </div>
+
             {/* Выбор режима синхронизации */}
             <div className="rounded-2xl bg-muted/50 p-4">
               <Label className="mb-2 block text-sm font-semibold">{t(lang, "mpModeTitle")}</Label>
@@ -471,6 +533,12 @@ export function MultiplayerDialog({
                       {lobby.teams.length > 0 && (
                         <div className="mt-0.5 truncate text-xs text-muted-foreground">
                           {lobby.teams.map((tm) => `${tm.emoji} ${tm.name}`).join(" · ")}
+                        </div>
+                      )}
+                      {/* Кто уже в комнате (имена + устройства) */}
+                      {lobby.players && lobby.players.length > 0 && (
+                        <div className="mt-0.5 truncate text-[11px] text-muted-foreground/80">
+                          {lobby.players.map((p) => p.profile.name).join(" · ")}
                         </div>
                       )}
                     </div>

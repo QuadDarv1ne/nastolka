@@ -355,6 +355,14 @@ export const STRINGS = {
   // Моя команда в мультиплеере
   mpMyTeam: { ru: "Ваша команда", en: "Your team" },
   mpTeamAssigned: { ru: "Вам назначена команда", en: "You were assigned team" },
+  // Профили участников (имя + устройство)
+  mpPlayerName: { ru: "Ваше имя", en: "Your name" },
+  mpPlayerNamePlaceholder: { ru: "Максим", en: "Alex" },
+  mpPlayerNameHint: {
+    ru: "Видно другим участникам комнаты — так все поймут, кто за каким устройством.",
+    en: "Visible to other room members — so everyone knows who is behind each device.",
+  },
+  mpMembersTitle: { ru: "Участники комнаты", en: "Room members" },
   mpTeamShuffled: { ru: "Лобби заполнено — команды распределены случайно!", en: "Lobby is full — teams were shuffled randomly!" },
   mpWatchingRound: {
     ru: "Сейчас играет другая команда — вы можете только смотреть. Ваша фишка «Повтор раунда» доступна под таймером.",
@@ -369,6 +377,13 @@ export const STRINGS = {
   replayChipUsed: { ru: "Повтор раунда применён — раунд начнётся заново с −10 сек", en: "Round replay applied — the round restarts with −10 sec" },
   replayChipEmpty: { ru: "Фишка «Повтор раунда» уже использована", en: "\"Round replay\" chip is already used" },
   replayChipBadge: { ru: "−10 сек", en: "−10 sec" },
+  // Выход игрока / техническая победа
+  forfeitWin: {
+    ru: "Победа технически — соперник покинул игру",
+    en: "Technical win — an opponent left the game",
+  },
+  playerLeft: { ru: "Игрок покинул игру", en: "A player left the game" },
+  teamAbandoned: { ru: "выбыла", en: "left" },
   mpErrorHint: {
     ru: "Проверьте, что мини-сервер мультиплеера запущен (порт 3003). На Amvera — нужен WebSocket-сервис в проекте.",
     en: "Make sure the multiplayer mini-service is running (port 3003). On Amvera — needs a WebSocket service.",
