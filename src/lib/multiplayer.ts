@@ -491,7 +491,9 @@ function makeWrapper(socket: import('socket.io-client').Socket): MultiplayerClie
     sendStateTo: (to, state) => socket.emit('send-state-to', { to, state }),
     sendMeta: (meta) => socket.emit('meta-update', { meta }),
     listLobbies: () => socket.emit('list-lobbies', {}),
+    leaveRoom: () => socket.emit('leave-room', {}),
     socketId: socket.id ?? '',
+    deviceId: getDeviceId(),
     on: (event, cb) => {
       socket.on(event, cb as never)
       let set = localHandlers.get(event)
