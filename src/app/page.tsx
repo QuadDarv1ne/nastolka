@@ -35,6 +35,7 @@ import {
   Languages,
   Radio,
   Settings,
+  Shield,
   Zap,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -691,6 +692,9 @@ function HeaderBar({
           </Button>
           <Button variant="ghost" size="sm" className="size-8 p-0 sm:size-10" onClick={toggle} aria-label={t(lang, "themeDark")}>
             {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          </Button>
+          <Button variant="ghost" size="sm" className="size-8 p-0 sm:size-10" onClick={() => window.location.assign("/admin")} aria-label="Admin panel">
+            <Shield className="size-4" />
           </Button>
           <Button variant="outline" size="sm" className="h-8 px-2 sm:h-10" onClick={onShowRules}>
             <Info className="size-4" />
