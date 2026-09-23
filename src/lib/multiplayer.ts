@@ -216,6 +216,8 @@ export interface RoomMember {
   id: string
   teamIndex: number
   profile: MemberProfile
+  /** Есть ли живое соединение (false — устройство в грейс-периоде) */
+  connected?: boolean
 }
 
 const CONNECT_TIMEOUT_MS = 15000  // больше времени на handshake через прокси
