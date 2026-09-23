@@ -15,29 +15,52 @@ export interface MultiplayerClient {
   sendState: (state: State) => void
   requestState: () => void
   sendStateTo: (to: string, state: State) => void
-  /** Отправить метаданные (роль, режим, ID) */
+  /** Отправить метаданные (инфа о командах для списка лобби) */
   sendMeta: (meta: MultiplayerMeta) => void
+  /** Запросить список открытых лобби у сервера */
+  listLobbies: () => void
   on: <K extends keyof MultiplayerEvents>(event: K, cb: (payload: MultiplayerEvents[K]) => void) => void
   off: <K extends keyof MultiplayerEvents>(event: K, cb: (payload: MultiplayerEvents[K]) => void) => void
 }
 
-/** Метаданные клиента: роль и режим синхронизации */
+/** Метаданные клиента: инфа о командах для списка лобби */
 export interface MultiplayerMeta {
-  role: "host" | "guest"
+  /** Инфа о командах (имена/эмодзи) — для отображения в списке лобби */
+  teams?: { name: string; emoji: string }[]
+  [key: string]: unknown
+}
+
+/** Публичное описание лобби в списке */
+export interface LobbyInfo {
+  code: string
+  members: number
+  max: number
   syncMode: "host" | "sync"
-  clientId: string
+  teams: { name: string; emoji: string }[]
+  status: "lobby" | "playing"
+  createdAt: number
 }
 
 export interface MultiplayerEvents {
-  'room-created': { code: string }
-  'room-joined': { code: string; members: number }
+  'room-created': { code: string; teamIndex: number; syncMode: "host" | "sync"; members: number }
+  'room-joined': { code: string; members: number; teamIndex: number; syncMode: "host" | "sync" }
   'room-error': { message: string }
-  'peer-joined': { id: string; members: number }
+  'peer-joined': { id: string; members: number; teamIndex: number }
   'peer-left': { id: string; members: number }
   'state-update': { from: string; state: State }
   'state-requested': { from: string }
   'pong-test': { time: number }
   'meta-update': { from: string; meta: MultiplayerMeta }
+  /** Сервер назначил участнику команду */
+  'team-assigned': { memberId: string; teamIndex: number; members: number }
+  /** Полное лобби (4/4): команды перемешаны, каждому — его новая команда */
+  'team-reassigned': { teamIndex: number; members: number }
+  /** Полное лобби (4/4): все новые назначения (для отображения у всех) */
+  'team-reassigned-all': { assignments: { id: string; teamIndex: number }[]; members: number }
+  /** Ответ на list-lobbies */
+  'lobbies-list': { lobbies: LobbyInfo[] }
+  /** Список лобби изменился (создана/закрыта комната, вошёл/вышел игрок) */
+  'lobbies-changed': { lobbies: LobbyInfo[] }
   /** Связь с сервером потеряна (сервер упал, Wi-Fi отвалился, ушли из комнаты) */
   'server-disconnect': { reason: string }
   /** Ошибка повторного подключения после обрыва */
@@ -51,8 +74,11 @@ type IoOptions = Partial<
   import('socket.io-client').ManagerOptions & import('socket.io-client').SocketOptions
 >
 
-/** Создать комнату. Возвращает клиент с кодом комнаты. */
-export async function createRoom(syncMode: "host" | "sync" = "host"): Promise<MultiplayerClient & { code: string }> {
+/**
+ * Создать комнату. Возвращает клиент с кодом комнаты, назначенной командой
+ * (хост всегда — команда 0) и syncMode комнаты (его задаёт хост).
+ */
+export async function createRoom(syncMode: "host" | "sync" = "host"): Promise<MultiplayerClient & { code: string; teamIndex: number }> {
   const socket = await connect()
   return new Promise((resolve, reject) => {
     let settled = false
@@ -65,26 +91,26 @@ export async function createRoom(syncMode: "host" | "sync" = "host"): Promise<Mu
     const timeout = setTimeout(() => fail(new Error('Сервер не ответил за 15 сек. Проверьте, что мини-сервис запущен на порту 3003.')), CONNECT_TIMEOUT_MS)
     socket.on('connect_error', (err: Error) => fail(new Error(`Ошибка подключения: ${err.message}`)))
     // connect() уже дожидается подключения, но на случай reconnect — обрабатываем оба варианта
-    const start = () => socket.emit('create-room', {})
+    const start = () => socket.emit('create-room', { syncMode })
     if (socket.connected) start()
     else socket.on('connect', start)
-    socket.on('room-created', ({ code }: { code: string }) => {
+    socket.on('room-created', (payload: { code: string; teamIndex: number; syncMode: "host" | "sync" }) => {
       if (settled) return
       settled = true
       clearTimeout(timeout)
-      const wrapper: MultiplayerClient & { code: string } = {
-        code,
+      const wrapper: MultiplayerClient & { code: string; teamIndex: number; syncMode: "host" | "sync" } = {
+        code: payload.code,
+        teamIndex: payload.teamIndex ?? 0,
+        syncMode: payload.syncMode ?? syncMode,
         ...makeWrapper(socket),
       }
-      // Отправляем другим участникам метаданные о себе (роль = host, режим)
-      wrapper.sendMeta({ role: "host", syncMode, clientId: socket.id ?? '' })
       resolve(wrapper)
     })
   })
 }
 
-/** Присоединиться к комнате по коду */
-export async function joinRoom(code: string, syncMode: "host" | "sync" = "sync"): Promise<MultiplayerClient> {
+/** Присоединиться к комнате по коду. teamIndex/syncMode приходит от сервера. */
+export async function joinRoom(code: string): Promise<MultiplayerClient & { teamIndex: number; syncMode: "host" | "sync" }> {
   const socket = await connect()
   return new Promise((resolve, reject) => {
     let settled = false
@@ -99,14 +125,12 @@ export async function joinRoom(code: string, syncMode: "host" | "sync" = "sync")
     socket.on('connect', () => {
       socket.emit('join-room', { code })
     })
-    socket.on('room-joined', (payload: { code: string; members: number }) => {
+    socket.on('room-joined', (payload: { code: string; members: number; teamIndex: number; syncMode: "host" | "sync" }) => {
       if (settled) return
       settled = true
       clearTimeout(timeout)
       const client = makeWrapper(socket)
-      // Отправляем метаданные (роль = guest, режим)
-      client.sendMeta({ role: "guest", syncMode, clientId: socket.id ?? '' })
-      resolve(client)
+      resolve(Object.assign(client, { teamIndex: payload.teamIndex, syncMode: payload.syncMode, code: payload.code }))
     })
     socket.on('room-error', (err: { message: string }) => {
       fail(new Error(err.message))
@@ -254,6 +278,7 @@ function makeWrapper(socket: import('socket.io-client').Socket): MultiplayerClie
     requestState: () => socket.emit('request-state', {}),
     sendStateTo: (to, state) => socket.emit('send-state-to', { to, state }),
     sendMeta: (meta) => socket.emit('meta-update', { meta }),
+    listLobbies: () => socket.emit('list-lobbies', {}),
     on: (event, cb) => {
       socket.on(event, cb as never)
       let set = localHandlers.get(event)

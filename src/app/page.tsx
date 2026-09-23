@@ -865,11 +865,11 @@ function PointsBadge({ state }: { state: State }) {
 }
 
 /** Кнопки фишек команды — показываются в раунде */
-function ChipsBar({ state, dispatch }: { state: State; dispatch: (a: Action) => void }) {
+function ChipsBar({ state, dispatch, locked }: { state: State; dispatch: (a: Action) => void; locked?: boolean }) {
   const { t, lang } = useI18n()
   const chips = state.teams[state.activeTeam]?.chips
   if (!chips) return null
-  const disabled = state.paused
+  const disabled = state.paused || !!locked
   const x2Used = state.multiplier > 1
 
   const handleChip = (chip: "x2" | "plus10" | "plus5") => {
@@ -1737,7 +1737,7 @@ export default function Home() {
       window.removeEventListener("touchstart", onStart)
       window.removeEventListener("touchend", onEnd)
     }
-  }, [state.phase, state.paused])
+  }, [state.phase, state.paused, isMpGuestLocked])
 
   /* Звук при завершении раунда */
   const lastResultRef = useRef<string>("")
@@ -2012,7 +2012,7 @@ export default function Home() {
                       <span className="text-3xl">{activeTeam.emoji}</span>
                       <span className="font-semibold">{activeTeam.name}</span>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => dispatch({ type: "BACK_TO_SETUP" })}>
+                    <Button variant="ghost" size="sm" disabled={isMpGuestLocked} onClick={() => dispatch({ type: "BACK_TO_SETUP" })}>
                       {t(lang, "exit")}
                     </Button>
                   </div>
@@ -2054,8 +2054,9 @@ export default function Home() {
                               <button
                                 key={m.id}
                                 type="button"
+                                disabled={isMpGuestLocked}
                                 onClick={() => dispatch({ type: "CHOOSE_METHOD", methodId: m.id, word: pickerRef.current.next() })}
-                                className={`flex flex-col items-center gap-1 rounded-2xl ${m.color} p-3 font-bold uppercase tracking-wide shadow transition hover:scale-105`}
+                                className={`flex flex-col items-center gap-1 rounded-2xl ${m.color} p-3 font-bold uppercase tracking-wide shadow transition hover:scale-105 disabled:pointer-events-none disabled:opacity-40`}
                               >
                                 <MethodIcon id={m.id} />
                                 <span className="text-xs">{m.label}</span>
@@ -2067,7 +2068,7 @@ export default function Home() {
 
                     {/* Если выпал Ещё раз — кнопка повторного броска */}
                     {state.phase === "method" && state.currentMethod?.id === "reroll" && (
-                      <Button size="lg" onClick={handleRoll} className="font-bold">
+                      <Button size="lg" onClick={handleRoll} disabled={isMpGuestLocked} className="font-bold">
                         <Dices className="mr-2 h-5 w-5" />
                         {t(lang, "reroll")}
                       </Button>
@@ -2078,7 +2079,7 @@ export default function Home() {
                       state.currentMethod &&
                       state.currentMethod.id !== "reroll" &&
                       (state.currentMethod.id !== "choice" || state.chosenMethodForChoice !== null) && (
-                        <Button size="lg" onClick={() => dispatch({ type: "SHOW_WORD" })} className="font-bold">
+                        <Button size="lg" onClick={() => dispatch({ type: "SHOW_WORD" })} disabled={isMpGuestLocked} className="font-bold">
                           <ArrowRight className="mr-2 h-5 w-5" />
                           {t(lang, "toWord")}
                         </Button>
@@ -2103,6 +2104,7 @@ export default function Home() {
                           size="lg"
                           variant="default"
                           className="mt-4 w-full font-bold"
+                          disabled={isMpGuestLocked}
                           onClick={() =>
                             dispatch({ type: isCountdownEnabled() ? "START_COUNTDOWN" : "REVEAL_WORD" })
                           }
@@ -2178,8 +2180,9 @@ export default function Home() {
                     <Timer secondsLeft={state.secondsLeft} total={state.roundSeconds} paused={state.paused} />
                     <button
                       type="button"
+                      disabled={isMpGuestLocked}
                       onClick={() => dispatch({ type: state.paused ? "RESUME" : "PAUSE" })}
-                      className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-muted px-3 text-xs font-semibold text-muted-foreground transition hover:bg-foreground hover:text-background"
+                      className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-muted px-3 text-xs font-semibold text-muted-foreground transition hover:bg-foreground hover:text-background disabled:pointer-events-none disabled:opacity-40"
                     >
                       {state.paused ? (
                         <>
@@ -2270,7 +2273,7 @@ export default function Home() {
                   )}
 
                   {/* Фишки команды (×2, +10 сек, +5 сек) */}
-                  {!state.paused && <ChipsBar state={state} dispatch={dispatch} />}
+                  {!state.paused && <ChipsBar state={state} dispatch={dispatch} locked={isMpGuestLocked} />}
 
                   <div className="mt-4 grid grid-cols-2 gap-3 sm:mt-6">
                     <Button
@@ -2280,7 +2283,7 @@ export default function Home() {
                         dispatch({ type: "SCORE" })
                         hapticScore()
                       }}
-                      disabled={state.paused}
+                      disabled={state.paused || isMpGuestLocked}
                     >
                       <Check className="mr-2 h-5 w-5" />
                       {t(lang, "guessed")}
@@ -2293,7 +2296,7 @@ export default function Home() {
                         dispatch({ type: "SKIP" })
                         hapticSkip()
                       }}
-                      disabled={state.paused}
+                      disabled={state.paused || isMpGuestLocked}
                     >
                       <X className="mr-2 h-5 w-5" />
                       {t(lang, "skip")}
@@ -2301,6 +2304,7 @@ export default function Home() {
                   </div>
                   <button
                     type="button"
+                    disabled={isMpGuestLocked}
                     onClick={() => {
                       playSwap()
                       if (state.currentWord) {
@@ -2409,6 +2413,7 @@ export default function Home() {
                     size="lg"
                     className="mt-6 w-full font-bold"
                     onClick={() => dispatch({ type: "NEXT_TURN" })}
+                    disabled={isMpGuestLocked}
                   >
                     <ChevronRight className="mr-2 h-5 w-5" />
                     {t(lang, "passTurn")}
@@ -2418,6 +2423,7 @@ export default function Home() {
                   {state.history.length > 0 && (
                     <button
                       type="button"
+                      disabled={isMpGuestLocked}
                       onClick={() => dispatch({ type: "UNDO_ROUND" })}
                       className="mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground"
                     >
@@ -2431,6 +2437,7 @@ export default function Home() {
                       size="lg"
                       className="mt-2 w-full bg-linear-to-r from-fuchsia-600 to-violet-700 font-bold text-white hover:from-fuchsia-700 hover:to-violet-800"
                       onClick={() => dispatch({ type: "STEAL_TURN" })}
+                      disabled={isMpGuestLocked}
                     >
                       <Dices className="mr-2 h-5 w-5" />
                       {t(lang, "stealTurnButton")}
@@ -2565,6 +2572,7 @@ export default function Home() {
                     <Button
                       size="lg"
                       className="flex-1 font-bold"
+                      disabled={isMpGuestLocked}
                       onClick={() => {
                         const newSteal = Math.floor(Math.random() * state.teams.length)
                         dispatch({ type: "RESTART", word: pickerRef.current.next(), stealTeam: newSteal })
@@ -2596,6 +2604,7 @@ export default function Home() {
                     size="sm"
                     variant="ghost"
                     className="mt-2 w-full"
+                    disabled={isMpGuestLocked}
                     onClick={() => dispatch({ type: "BACK_TO_SETUP" })}
                   >
                     <PartyPopper className="mr-2 h-4 w-4" />

@@ -25,16 +25,17 @@ export interface Team {
   chips: TeamChips
 }
 
-/** Фишки команды: 2× x2, 1× +10 сек, 1× +5 сек, опционально 1× Кража хода */
+/** Фишки команды: 2× x2, 1× +10 сек, 1× +5 сек, опционально 1× Кража хода, 1× Повтор раунда */
 export interface TeamChips {
   x2: number
   plus10: number
   plus5: number
   stealTurn: number    // 1 — если команде случайно выпала Кража хода, иначе 0
+  replay: number       // 1 — Повтор раунда: отменяет раунд соперников, рестарт с -10 сек
 }
 
 export function initialChips(): TeamChips {
-  return { x2: 2, plus10: 1, plus5: 1, stealTurn: 0 }
+  return { x2: 2, plus10: 1, plus5: 1, stealTurn: 0, replay: 1 }
 }
 
 export interface RoundHistoryEntry {

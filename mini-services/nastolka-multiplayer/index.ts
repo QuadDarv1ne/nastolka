@@ -2,13 +2,17 @@
 // Запускается на порту 3003 (см. Caddyfile для проксирования через XTransformPort).
 //
 // Архитектура:
-//   - Клиент создаёт комнату → получает код (4 символа)
-//   - Второй клиент вводит код → присоединяется к комнате
-//   - Любой клиент отправляет state-update с полным состоянием игры
-//   - Сервер ретранслирует его всем остальным участникам комнаты
+//   - Клиент создаёт комнату (syncMode задаёт ХОСТ) → код (4 символа)
+//   - Второй клиент вводит код (или выбирает из списка лобби) → присоединяется
+//   - Сервер назначает каждому участнику команду (teamIndex):
+//       1-й → команда 0, 2-й → команда 1, 3-й → команда 2, 4-й → команда 3
+//       при полном лобби (4/4) назначения перемешиваются (рандомизация)
+//   - Активный игрок (владелец раунда) отправляет state-update с полем activeTeam;
+//     сервер ретранслирует состояние всем остальным участникам комнаты
+//   - Каждый клиент играет только раунды своей команды, чужие — смотрит
 //
-// Состояние не хранится на сервере — каждый клиент держит своё и отправляет
-// обновления. Сервер — просто ретранслятор.
+// Состояние игры не хранится на сервере — каждый клиент держит своё и отправляет
+// обновления. Сервер — ретранслятор + реестр комнат/команд/лобби.
 
 import { createServer } from 'http'
 import { appendFileSync, mkdirSync } from 'node:fs'
@@ -22,6 +26,7 @@ import { Server, type Socket } from 'socket.io'
 const WS_PATH = process.env.MP_PATH || '/mp'
 const LOG_FILE = resolve(process.env.MP_LOG_FILE || 'logs/multiplayer.log')
 const TRUST_PROXY = process.env.MP_TRUST_PROXY !== 'false'
+const MAX_MEMBERS = 4
 
 mkdirSync(dirname(LOG_FILE), { recursive: true })
 
@@ -47,8 +52,43 @@ const writeLog = (event: string, details: Record<string, unknown>) => {
   }
 }
 
-// roomCode → Set<socketId>
-const rooms = new Map<string, Set<string>>()
+/** Информация о комнате для реестра и списка лобби */
+interface RoomInfo {
+  code: string
+  /** Режим синхронизации задаёт хост при создании комнаты */
+  syncMode: 'host' | 'sync'
+  /** socketId → teamIndex (какой командой играет участник) */
+  teamAssignments: Map<string, number>
+  /** Инфа о командах от хоста (имена/эмодзи) — для списка лобби */
+  teamInfo: { name: string; emoji: string }[]
+  /** Статус комнаты для списка лобби: лобби (setup) или в игре */
+  status: 'lobby' | 'playing'
+  createdAt: number
+}
+
+// roomCode → RoomInfo
+const rooms = new Map<string, RoomInfo>()
+// socketId → roomCode (для быстрого выхода)
+const socketToRoom = new Map<string, string>()
+
+/** Публичное описание комнаты для списка лобби (без socketId) */
+const lobbyView = (room: RoomInfo) => ({
+  code: room.code,
+  members: room.teamAssignments.size,
+  max: MAX_MEMBERS,
+  syncMode: room.syncMode,
+  teams: room.teamInfo,
+  status: room.status,
+  createdAt: room.createdAt,
+})
+
+/** Список всех комнат для списка лобби */
+const lobbiesList = () => Array.from(rooms.values()).map(lobbyView)
+
+/** Сообщить всем подключённым, что список лобби изменился */
+const broadcastLobbiesChanged = () => {
+  io.emit('lobbies-changed', { lobbies: lobbiesList() })
+}
 
 const httpServer = createServer((req, res) => {
   // Health-check: `curl http://localhost:3003/health`
@@ -68,9 +108,6 @@ const io = new Server(httpServer, {
   pingInterval: 25000,
 })
 
-// socketId → roomCode (для быстрого выхода)
-const socketToRoom = new Map<string, string>()
-
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // без похожих символов
 const generateRoomCode = () => {
   let code = ''
@@ -80,19 +117,48 @@ const generateRoomCode = () => {
   return rooms.has(code) ? generateRoomCode() : code
 }
 
+/** Назначить следующий свободный teamIndex (по порядку входа) */
+const nextTeamIndex = (room: RoomInfo) => {
+  const used = new Set(room.teamAssignments.values())
+  for (let i = 0; i < MAX_MEMBERS; i++) {
+    if (!used.has(i)) return i
+  }
+  return 0
+}
+
+/**
+ * Перемешать назначения команд при полном лобби (4/4) —
+ * кто какой командой играет, определяется случайно.
+ * Возвращает новые назначения socketId → teamIndex.
+ */
+const shuffleAssignments = (room: RoomInfo) => {
+  const ids = Array.from(room.teamAssignments.keys())
+  const indexes = ids.map((id) => room.teamAssignments.get(id)!)
+  // Тасование Фишера—Йетса
+  for (let i = indexes.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[indexes[i], indexes[j]] = [indexes[j], indexes[i]]
+  }
+  const assignments = ids.map((id, i) => ({ id, teamIndex: indexes[i] }))
+  for (const { id, teamIndex } of assignments) room.teamAssignments.set(id, teamIndex)
+  return assignments
+}
+
 const leaveRoom = (socketId: string, notify = true) => {
-  const room = socketToRoom.get(socketId)
-  if (!room) return
-  io.sockets.sockets.get(socketId)?.leave(room)
-  const members = rooms.get(room)
-  if (members) {
-    members.delete(socketId)
-    if (members.size === 0) {
-      rooms.delete(room)
-      console.log(`[room ${room}] emptied, removed`)
+  const roomCode = socketToRoom.get(socketId)
+  if (!roomCode) return
+  const room = rooms.get(roomCode)
+  io.sockets.sockets.get(socketId)?.leave(roomCode)
+  if (room) {
+    room.teamAssignments.delete(socketId)
+    if (room.teamAssignments.size === 0) {
+      rooms.delete(roomCode)
+      console.log(`[room ${roomCode}] emptied, removed`)
+      broadcastLobbiesChanged()
     } else if (notify) {
-      io.to(room).emit('peer-left', { id: socketId, members: members.size })
-      console.log(`[room ${room}] ${socketId} left (now ${members.size})`)
+      io.to(roomCode).emit('peer-left', { id: socketId, members: room.teamAssignments.size })
+      console.log(`[room ${roomCode}] ${socketId} left (now ${room.teamAssignments.size})`)
+      broadcastLobbiesChanged()
     }
   }
   socketToRoom.delete(socketId)
@@ -103,68 +169,118 @@ io.on('connection', (socket) => {
   console.log(`[+] ${socket.id} (${ip})`)
   writeLog('connect', { socketId: socket.id, ip })
 
-  // Создать новую комнату
-  socket.on('create-room', () => {
+  // Список открытых лобби (для экрана «Лобби онлайн»)
+  socket.on('list-lobbies', () => {
+    socket.emit('lobbies-list', { lobbies: lobbiesList() })
+  })
+
+  // Создать новую комнату (syncMode задаёт хост)
+  socket.on('create-room', ({ syncMode }: { syncMode?: 'host' | 'sync' }) => {
     leaveRoom(socket.id)
     const code = generateRoomCode()
-    rooms.set(code, new Set([socket.id]))
+    const room: RoomInfo = {
+      code,
+      syncMode: syncMode === 'sync' ? 'sync' : 'host',
+      teamAssignments: new Map([[socket.id, 0]]), // хост — команда 0
+      teamInfo: [],
+      status: 'lobby',
+      createdAt: Date.now(),
+    }
+    rooms.set(code, room)
     socketToRoom.set(socket.id, code)
     socket.join(code)
-    socket.emit('room-created', { code })
-    console.log(`[room ${code}] created by ${socket.id}`)
+    socket.emit('room-created', { code, teamIndex: 0, syncMode: room.syncMode, members: 1 })
+    console.log(`[room ${code}] created by ${socket.id} (syncMode=${room.syncMode})`)
     writeLog('room-created', { socketId: socket.id, ip, room: code })
+    broadcastLobbiesChanged()
   })
 
   // Присоединиться к существующей комнате
   socket.on('join-room', ({ code }: { code: string }) => {
     const upper = (code || '').toUpperCase().trim()
-    const members = rooms.get(upper)
-    if (!members) {
+    const room = rooms.get(upper)
+    if (!room) {
       socket.emit('room-error', { message: 'Комната не найдена' })
       return
     }
-    if (members.size >= 4) {
+    if (room.teamAssignments.size >= MAX_MEMBERS) {
       socket.emit('room-error', { message: 'Комната уже заполнена (макс 4 игрока)' })
       return
     }
     leaveRoom(socket.id)
-    members.add(socket.id)
+    const teamIndex = nextTeamIndex(room)
+    room.teamAssignments.set(socket.id, teamIndex)
     socketToRoom.set(socket.id, upper)
     socket.join(upper)
-    socket.emit('room-joined', { code: upper, members: members.size })
-    // Сообщить остальным, что присоединился новый участник
-    socket.to(upper).emit('peer-joined', { id: socket.id, members: members.size })
-    console.log(`[room ${upper}] ${socket.id} joined (now ${members.size})`)
-    writeLog('room-joined', { socketId: socket.id, ip, room: upper })
+    const members = room.teamAssignments.size
+    // syncMode комнаты задаёт ХОСТ — гость получает его от сервера,
+    // а не выбирает сам (иначе режимы расходятся и состояния воюют).
+    socket.emit('room-joined', { code: upper, members, teamIndex, syncMode: room.syncMode })
+    // Сообщить остальным, что присоединился новый участник и какой командой он играет
+    socket.to(upper).emit('peer-joined', { id: socket.id, members, teamIndex })
+    io.to(upper).emit('team-assigned', { memberId: socket.id, teamIndex, members })
+    // При полном лобби (4/4) — рандомизируем распределение команд
+    if (members === MAX_MEMBERS) {
+      const assignments = shuffleAssignments(room)
+      for (const { id, teamIndex: newIndex } of assignments) {
+        io.to(id).emit('team-reassigned', { teamIndex: newIndex, members })
+      }
+      io.to(upper).emit('team-reassigned-all', {
+        assignments: assignments.map(({ id, teamIndex: newIndex }) => ({ id, teamIndex: newIndex })),
+        members,
+      })
+      console.log(`[room ${upper}] full (${members}/4) — команды перемешаны`)
+    }
+    console.log(`[room ${upper}] ${socket.id} joined (team ${teamIndex}, now ${members})`)
+    writeLog('room-joined', { socketId: socket.id, ip, room: upper, teamIndex })
+    broadcastLobbiesChanged()
   })
 
   // Синхронизация состояния игры
   socket.on('state-update', ({ state }: { state: unknown }) => {
-    const room = socketToRoom.get(socket.id)
-    if (!room) return
+    const roomCode = socketToRoom.get(socket.id)
+    if (!roomCode) return
     // Ретранслируем всем остальным в комнате (не себе)
-    socket.to(room).emit('state-update', { from: socket.id, state })
+    socket.to(roomCode).emit('state-update', { from: socket.id, state })
+    // Обновляем статус комнаты для списка лобби
+    const room = rooms.get(roomCode)
+    if (room) {
+      const phase = (state as { phase?: string } | null)?.phase
+      const status = phase === 'setup' ? 'lobby' : 'playing'
+      if (status !== room.status) {
+        room.status = status
+        broadcastLobbiesChanged()
+      }
+    }
   })
 
   // Запрос текущего состояния у участников (новый участник просит)
   socket.on('request-state', () => {
-    const room = socketToRoom.get(socket.id)
-    if (!room) return
-    socket.to(room).emit('state-requested', { from: socket.id })
+    const roomCode = socketToRoom.get(socket.id)
+    if (!roomCode) return
+    socket.to(roomCode).emit('state-requested', { from: socket.id })
   })
 
   // Ответить другому участнику состоянием (один из участников отвечает)
   socket.on('send-state-to', ({ to, state }: { to: string; state: unknown }) => {
-    const room = socketToRoom.get(socket.id)
-    if (!room || socketToRoom.get(to) !== room) return
+    const roomCode = socketToRoom.get(socket.id)
+    if (!roomCode || socketToRoom.get(to) !== roomCode) return
     io.to(to).emit('state-update', { from: socket.id, state })
   })
 
-  // Метаданные клиента (роль, режим синхронизации)
+  // Метаданные от хоста: инфа о командах (имена/эмодзи) для списка лобби
   socket.on('meta-update', ({ meta }: { meta: unknown }) => {
-    const room = socketToRoom.get(socket.id)
+    const roomCode = socketToRoom.get(socket.id)
+    if (!roomCode) return
+    const room = rooms.get(roomCode)
     if (!room) return
-    socket.to(room).emit('meta-update', { from: socket.id, meta })
+    // teamInfo обновляет только создатель комнаты (первый участник)
+    const hostId = Array.from(room.teamAssignments.keys())[0]
+    if (socket.id === hostId && meta && typeof meta === 'object' && 'teams' in meta && Array.isArray((meta as { teams: unknown }).teams)) {
+      room.teamInfo = (meta as { teams: { name: string; emoji: string }[] }).teams.slice(0, MAX_MEMBERS)
+      broadcastLobbiesChanged()
+    }
+    socket.to(roomCode).emit('meta-update', { from: socket.id, meta })
   })
 
   // Поиск пары: ping для проверки соединения
@@ -173,9 +289,9 @@ io.on('connection', (socket) => {
   })
 
   socket.on('disconnect', () => {
-    const room = socketToRoom.get(socket.id)
+    const roomCode = socketToRoom.get(socket.id)
     leaveRoom(socket.id)
-    writeLog('disconnect', { socketId: socket.id, ip, room: room || null })
+    writeLog('disconnect', { socketId: socket.id, ip, room: roomCode || null })
     console.log(`[-] ${socket.id} (${ip})`)
   })
 
