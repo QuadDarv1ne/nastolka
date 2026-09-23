@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 
 type VisitorStats = {
   total: number;
+  uniqueIps: number;
+  knownCountries: number;
+  knownCities: number;
   devices: Record<string, number>;
   countries: Record<string, number>;
   cities: Record<string, number>;
@@ -11,10 +14,14 @@ type VisitorStats = {
   operatingSystems: Record<string, number>;
   paths: Record<string, number>;
   languages: Record<string, number>;
+  methods: Record<string, number>;
+  referers: Record<string, number>;
+  hosts: Record<string, number>;
   recent: Array<{
     timestamp: string;
     method: string;
     path: string;
+    query: string | null;
     ip: string | null;
     country: string | null;
     city: string | null;
@@ -22,6 +29,9 @@ type VisitorStats = {
     os: string;
     browser: string;
     userAgent: string | null;
+    referer: string | null;
+    language: string | null;
+    forwardedHost: string | null;
   }>;
 };
 
@@ -98,6 +108,65 @@ const decodeAdminTokenExpiry = (token: string) => {
     return 0;
   }
 };
+
+const buildChartData = (entries: Array<[string, number]>) => {
+  if (!entries.length) {
+    return [] as Array<{ label: string; value: number; percent: number }>;
+  }
+
+  const sorted = [...entries].sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const max = Math.max(...sorted.map(([, value]) => value), 1);
+
+  return sorted.map(([label, value]) => ({
+    label: label || "unknown",
+    value,
+    percent: (value / max) * 100,
+  }));
+};
+
+function StatBarChart({
+  title,
+  entries,
+  palette,
+}: {
+  title: string;
+  entries: Array<[string, number]>;
+  palette: (typeof themeStyles)[ThemeMode];
+}) {
+  const chartData = useMemo(() => buildChartData(entries), [entries]);
+
+  return (
+    <div className={`rounded-2xl border p-4 ${palette.card}`}>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">{title}</h2>
+        <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] ${palette.badge}`}>
+          Top 6
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        {chartData.length > 0 ? (
+          chartData.map((item) => (
+            <div key={item.label} className="space-y-1.5">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="truncate pr-2">{item.label}</span>
+                <span className="font-semibold text-cyan-300">{item.value}</span>
+              </div>
+              <div className={`h-2.5 overflow-hidden rounded-full ${palette.soft}`}>
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500"
+                  style={{ width: `${item.percent}%` }}
+                />
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className={`text-sm ${palette.muted}`}>Нет данных</p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function AdminPage() {
   const [theme, setTheme] = useState<ThemeMode>("dark");
@@ -200,6 +269,9 @@ export default function AdminPage() {
   const osEntries = useMemo(() => Object.entries(stats?.operatingSystems ?? {}), [stats]);
   const pathEntries = useMemo(() => Object.entries(stats?.paths ?? {}), [stats]);
   const languageEntries = useMemo(() => Object.entries(stats?.languages ?? {}), [stats]);
+  const methodEntries = useMemo(() => Object.entries(stats?.methods ?? {}), [stats]);
+  const refererEntries = useMemo(() => Object.entries(stats?.referers ?? {}), [stats]);
+  const hostEntries = useMemo(() => Object.entries(stats?.hosts ?? {}), [stats]);
 
   const onThemeChange = (nextTheme: ThemeMode) => {
     setTheme(nextTheme);
@@ -300,14 +372,14 @@ export default function AdminPage() {
           key={mode}
           type="button"
           onClick={() => onThemeChange(mode)}
-          className={`rounded-full px-3 py-1.5 text-xs font-medium capitalize transition ${
+          className={`rounded-full px-3 py-1.5 text-xs font-medium capitalize transition-all duration-200 ring-1 ring-transparent ${
             theme === mode
               ? mode === "dark"
-                ? "bg-slate-800 text-white"
+                ? "bg-slate-800 text-white shadow-lg shadow-slate-600/20 ring-cyan-400/70"
                 : mode === "blue"
-                  ? "bg-cyan-500 text-sky-950"
-                  : "bg-slate-200 text-slate-800"
-              : "text-slate-500 hover:text-current"
+                  ? "bg-cyan-400 text-sky-950 shadow-lg shadow-cyan-500/30 ring-cyan-300"
+                  : "bg-slate-200 text-slate-800 shadow-lg shadow-slate-300/30 ring-cyan-500/50"
+              : "text-slate-500 hover:text-current hover:bg-white/5"
           }`}
         >
           {mode}
@@ -315,6 +387,9 @@ export default function AdminPage() {
       ))}
     </div>
   );
+
+  const themeBadgeLabel =
+    theme === "dark" ? "Dark" : theme === "blue" ? "Blue" : "Light";
 
   if (stats && !error) {
     return (
@@ -327,6 +402,10 @@ export default function AdminPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
+              <div className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs ${palette.badge}`}>
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500" />
+                Theme: {themeBadgeLabel}
+              </div>
               {renderThemeToggle()}
               <div className={`rounded-xl border px-3 py-2 text-xs ${palette.badge}`}>
                 TTL: {formattedTimeLeft}
@@ -344,6 +423,7 @@ export default function AdminPage() {
           <section className="grid gap-4 md:grid-cols-4">
             {[
               { label: "Всего запросов", value: stats.total, accent: true },
+              { label: "Уникальных IP", value: stats.uniqueIps },
               { label: "Устройств", value: Object.keys(stats.devices).length },
               { label: "Стран", value: Object.keys(stats.countries).length },
               { label: "Городов", value: Object.keys(stats.cities).length },
@@ -355,94 +435,40 @@ export default function AdminPage() {
             ))}
           </section>
 
+          <section className="grid gap-4 md:grid-cols-3">
+            {[
+              { label: "Геолокация: страны", value: stats.knownCountries, detail: `из ${stats.total} событий` },
+              { label: "Геолокация: города", value: stats.knownCities, detail: `из ${stats.total} событий` },
+              { label: "Последняя активность", value: stats.recent[0] ? new Date(stats.recent[0].timestamp).toLocaleString() : "Нет данных", detail: stats.recent[0]?.ip || "IP неизвестен" },
+            ].map((item) => (
+              <div key={item.label} className={`rounded-2xl border p-4 ${palette.card}`}>
+                <p className={`text-sm ${palette.muted}`}>{item.label}</p>
+                <p className="mt-2 truncate text-xl font-bold">{item.value}</p>
+                <p className={`mt-1 text-xs ${palette.muted}`}>{item.detail}</p>
+              </div>
+            ))}
+          </section>
+
           <section className="grid gap-6 lg:grid-cols-3">
-            <div className={`rounded-2xl border p-4 ${palette.card}`}>
-              <h2 className="mb-3 text-lg font-semibold">Устройства</h2>
-              <ul className="space-y-2">
-                {deviceEntries.length > 0 ? deviceEntries.map(([device, count]) => (
-                  <li key={device} className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${palette.soft}`}>
-                    <span className="capitalize">{device || "unknown"}</span>
-                    <span className="font-semibold text-cyan-300">{count}</span>
-                  </li>
-                )) : <li className={`text-sm ${palette.muted}`}>Нет данных</li>}
-              </ul>
-            </div>
-
-            <div className={`rounded-2xl border p-4 ${palette.card}`}>
-              <h2 className="mb-3 text-lg font-semibold">Страны</h2>
-              <ul className="space-y-2">
-                {countryEntries.length > 0 ? countryEntries.map(([country, count]) => (
-                  <li key={country} className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${palette.soft}`}>
-                    <span>{country || "unknown"}</span>
-                    <span className="font-semibold text-cyan-300">{count}</span>
-                  </li>
-                )) : <li className={`text-sm ${palette.muted}`}>Нет данных</li>}
-              </ul>
-            </div>
-
-            <div className={`rounded-2xl border p-4 ${palette.card}`}>
-              <h2 className="mb-3 text-lg font-semibold">Города</h2>
-              <ul className="space-y-2">
-                {cityEntries.length > 0 ? cityEntries.map(([city, count]) => (
-                  <li key={city} className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${palette.soft}`}>
-                    <span>{city || "unknown"}</span>
-                    <span className="font-semibold text-cyan-300">{count}</span>
-                  </li>
-                )) : <li className={`text-sm ${palette.muted}`}>Нет данных</li>}
-              </ul>
-            </div>
+            <StatBarChart title="Устройства" entries={deviceEntries} palette={palette} />
+            <StatBarChart title="Страны" entries={countryEntries} palette={palette} />
+            <StatBarChart title="Города" entries={cityEntries} palette={palette} />
           </section>
 
           <section className="grid gap-6 lg:grid-cols-2">
-            <div className={`rounded-2xl border p-4 ${palette.card}`}>
-              <h2 className="mb-3 text-lg font-semibold">Браузеры</h2>
-              <ul className="space-y-2">
-                {browserEntries.length > 0 ? browserEntries.map(([browser, count]) => (
-                  <li key={browser} className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${palette.soft}`}>
-                    <span>{browser || "unknown"}</span>
-                    <span className="font-semibold text-cyan-300">{count}</span>
-                  </li>
-                )) : <li className={`text-sm ${palette.muted}`}>Нет данных</li>}
-              </ul>
-            </div>
-
-            <div className={`rounded-2xl border p-4 ${palette.card}`}>
-              <h2 className="mb-3 text-lg font-semibold">ОС</h2>
-              <ul className="space-y-2">
-                {osEntries.length > 0 ? osEntries.map(([os, count]) => (
-                  <li key={os} className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${palette.soft}`}>
-                    <span>{os || "unknown"}</span>
-                    <span className="font-semibold text-cyan-300">{count}</span>
-                  </li>
-                )) : <li className={`text-sm ${palette.muted}`}>Нет данных</li>}
-              </ul>
-            </div>
+            <StatBarChart title="Браузеры" entries={browserEntries} palette={palette} />
+            <StatBarChart title="ОС" entries={osEntries} palette={palette} />
           </section>
 
           <section className="grid gap-6 lg:grid-cols-2">
-            <div className={`rounded-2xl border p-4 ${palette.card}`}>
-              <h2 className="mb-3 text-lg font-semibold">Популярные пути</h2>
-              <ul className="space-y-2">
-                {pathEntries.length > 0 ? pathEntries.map(([path, count]) => (
-                  <li key={path} className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${palette.soft}`}>
-                    <span className="truncate pr-2">{path || "unknown"}</span>
-                    <span className="font-semibold text-cyan-300 whitespace-nowrap">{count}</span>
-                  </li>
-                )) : <li className={`text-sm ${palette.muted}`}>Нет данных</li>}
-              </ul>
-            </div>
+            <StatBarChart title="Популярные пути" entries={pathEntries} palette={palette} />
+            <StatBarChart title="Языки" entries={languageEntries} palette={palette} />
+          </section>
 
-            <div className={`rounded-2xl border p-4 ${palette.card}`}>
-              <h2 className="mb-3 text-lg font-semibold">Языки</h2>
-              <ul className="space-y-2">
-                {languageEntries.length > 0 ? languageEntries.map(([language, count]) => (
-                  <li key={language} className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${palette.soft}`}>
-                    <span>{language || "unknown"}</span>
-                    <span className="font-semibold text-cyan-300">{count}</span>
-                  </li>
-                )) : <li className={`text-sm ${palette.muted}`}>Нет данных</li>}
-              </ul>
-            </div>
+          <section className="grid gap-6 lg:grid-cols-3">
+            <StatBarChart title="HTTP-методы" entries={methodEntries} palette={palette} />
+            <StatBarChart title="Источники перехода" entries={refererEntries} palette={palette} />
+            <StatBarChart title="Хосты" entries={hostEntries} palette={palette} />
           </section>
 
           <section className={`rounded-2xl border p-4 ${palette.card}`}>
@@ -452,26 +478,34 @@ export default function AdminPage() {
                 <thead className={palette.muted}>
                   <tr>
                     <th className="pb-3 pr-4">Время</th>
+                    <th className="pb-3 pr-4">Метод</th>
                     <th className="pb-3 pr-4">Путь</th>
+                    <th className="pb-3 pr-4">Query</th>
                     <th className="pb-3 pr-4">IP</th>
                     <th className="pb-3 pr-4">Страна</th>
                     <th className="pb-3 pr-4">Город</th>
                     <th className="pb-3 pr-4">Устройство</th>
                     <th className="pb-3 pr-4">OS</th>
                     <th className="pb-3 pr-4">Браузер</th>
+                    <th className="pb-3 pr-4">Источник</th>
+                    <th className="pb-3 pr-4">User-Agent</th>
                   </tr>
                 </thead>
                 <tbody>
                   {stats.recent.map((entry, index) => (
                     <tr key={`${entry.timestamp}-${index}`} className={`border-t ${palette.divider}`}>
                       <td className="py-2 pr-4">{new Date(entry.timestamp).toLocaleString()}</td>
+                      <td className="py-2 pr-4 font-mono text-xs">{entry.method}</td>
                       <td className="py-2 pr-4">{entry.path}</td>
+                      <td className="max-w-48 truncate py-2 pr-4">{entry.query || "-"}</td>
                       <td className="py-2 pr-4">{entry.ip || "unknown"}</td>
                       <td className="py-2 pr-4">{entry.country || "unknown"}</td>
                       <td className="py-2 pr-4">{entry.city || "unknown"}</td>
                       <td className="py-2 pr-4">{entry.device}</td>
                       <td className="py-2 pr-4">{entry.os}</td>
                       <td className="py-2 pr-4">{entry.browser}</td>
+                      <td className="max-w-48 truncate py-2 pr-4">{entry.referer || "direct"}</td>
+                      <td className="max-w-72 truncate py-2 pr-4 text-xs">{entry.userAgent || "unknown"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -491,7 +525,12 @@ export default function AdminPage() {
             <p className={`text-xs uppercase tracking-[0.2em] ${palette.accent}`}>Admin access</p>
             <h1 className="mt-2 text-3xl font-bold">Статистика посетителей</h1>
           </div>
-          {renderThemeToggle()}
+          <div className="flex items-center gap-2">
+            <div className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] ${palette.badge}`}>
+              {themeBadgeLabel}
+            </div>
+            {renderThemeToggle()}
+          </div>
         </div>
 
         <div className={`mb-5 rounded-2xl border p-3 text-sm ${palette.badge}`}>

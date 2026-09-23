@@ -115,44 +115,65 @@ export const readVisitorLogs = (limit = 50): VisitorLogEntry[] => {
 };
 
 export const getVisitorReport = (limit = 50) => {
-  const entries = readVisitorLogs(limit);
-  const devices = entries.reduce<Record<string, number>>((acc, entry) => {
+  const allEntries = readVisitorLogs(Number.MAX_SAFE_INTEGER);
+  const entries = allEntries.slice(0, limit);
+  const devices = allEntries.reduce<Record<string, number>>((acc, entry) => {
     acc[entry.device] = (acc[entry.device] || 0) + 1;
     return acc;
   }, {});
-  const countries = entries.reduce<Record<string, number>>((acc, entry) => {
+  const countries = allEntries.reduce<Record<string, number>>((acc, entry) => {
     if (!entry.country) return acc;
     acc[entry.country] = (acc[entry.country] || 0) + 1;
     return acc;
   }, {});
-  const cities = entries.reduce<Record<string, number>>((acc, entry) => {
+  const cities = allEntries.reduce<Record<string, number>>((acc, entry) => {
     if (!entry.city) return acc;
     acc[entry.city] = (acc[entry.city] || 0) + 1;
     return acc;
   }, {});
-  const browsers = entries.reduce<Record<string, number>>((acc, entry) => {
+  const browsers = allEntries.reduce<Record<string, number>>((acc, entry) => {
     if (!entry.browser) return acc;
     acc[entry.browser] = (acc[entry.browser] || 0) + 1;
     return acc;
   }, {});
-  const operatingSystems = entries.reduce<Record<string, number>>((acc, entry) => {
+  const operatingSystems = allEntries.reduce<Record<string, number>>((acc, entry) => {
     if (!entry.os) return acc;
     acc[entry.os] = (acc[entry.os] || 0) + 1;
     return acc;
   }, {});
-  const paths = entries.reduce<Record<string, number>>((acc, entry) => {
+  const paths = allEntries.reduce<Record<string, number>>((acc, entry) => {
     const key = entry.path || "unknown";
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
-  const languages = entries.reduce<Record<string, number>>((acc, entry) => {
+  const languages = allEntries.reduce<Record<string, number>>((acc, entry) => {
     const value = entry.language?.split(",")[0]?.trim() || "unknown";
     acc[value] = (acc[value] || 0) + 1;
     return acc;
   }, {});
+  const methods = allEntries.reduce<Record<string, number>>((acc, entry) => {
+    acc[entry.method] = (acc[entry.method] || 0) + 1;
+    return acc;
+  }, {});
+  const referers = allEntries.reduce<Record<string, number>>((acc, entry) => {
+    const key = entry.referer || "direct";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const hosts = allEntries.reduce<Record<string, number>>((acc, entry) => {
+    const key = entry.forwardedHost || "unknown";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const uniqueIps = new Set(allEntries.map((entry) => entry.ip).filter(Boolean)).size;
+  const knownCountries = allEntries.filter((entry) => Boolean(entry.country)).length;
+  const knownCities = allEntries.filter((entry) => Boolean(entry.city)).length;
 
   return {
-    total: entries.length,
+    total: allEntries.length,
+    uniqueIps,
+    knownCountries,
+    knownCities,
     devices,
     countries,
     cities,
@@ -160,6 +181,9 @@ export const getVisitorReport = (limit = 50) => {
     operatingSystems,
     paths,
     languages,
+    methods,
+    referers,
+    hosts,
     recent: entries,
   };
 };
