@@ -22,10 +22,8 @@ export async function POST(request: NextRequest) {
     }, { status: 500 });
   }
 
-  const origin = request.nextUrl.origin;
-
   return NextResponse.json({
     token,
-    url: `${origin}/admin?token=${encodeURIComponent(token)}`,
+    url: `/admin?token=${encodeURIComponent(token)}`,
   });
 }

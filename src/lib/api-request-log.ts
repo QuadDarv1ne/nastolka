@@ -130,12 +130,36 @@ export const getVisitorReport = (limit = 50) => {
     acc[entry.city] = (acc[entry.city] || 0) + 1;
     return acc;
   }, {});
+  const browsers = entries.reduce<Record<string, number>>((acc, entry) => {
+    if (!entry.browser) return acc;
+    acc[entry.browser] = (acc[entry.browser] || 0) + 1;
+    return acc;
+  }, {});
+  const operatingSystems = entries.reduce<Record<string, number>>((acc, entry) => {
+    if (!entry.os) return acc;
+    acc[entry.os] = (acc[entry.os] || 0) + 1;
+    return acc;
+  }, {});
+  const paths = entries.reduce<Record<string, number>>((acc, entry) => {
+    const key = entry.path || "unknown";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const languages = entries.reduce<Record<string, number>>((acc, entry) => {
+    const value = entry.language?.split(",")[0]?.trim() || "unknown";
+    acc[value] = (acc[value] || 0) + 1;
+    return acc;
+  }, {});
 
   return {
     total: entries.length,
     devices,
     countries,
     cities,
+    browsers,
+    operatingSystems,
+    paths,
+    languages,
     recent: entries,
   };
 };
