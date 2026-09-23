@@ -263,7 +263,7 @@ export async function createRoom(syncMode: "host" | "sync" = "host"): Promise<Mu
 }
 
 /** Присоединиться к комнате по коду. teamIndex/syncMode приходит от сервера. */
-export async function joinRoom(code: string): Promise<MultiplayerClient & { teamIndex: number; syncMode: "host" | "sync" }> {
+export async function joinRoom(code: string): Promise<MultiplayerClient & { teamIndex: number; syncMode: "host" | "sync"; reconnected: boolean }> {
   const socket = await connect()
   return new Promise((resolve, reject) => {
     let settled = false
@@ -278,12 +278,12 @@ export async function joinRoom(code: string): Promise<MultiplayerClient & { team
     socket.on('connect', () => {
       socket.emit('join-room', { code, profile: buildMemberProfile() })
     })
-    socket.on('room-joined', (payload: { code: string; members: number; teamIndex: number; syncMode: "host" | "sync" }) => {
+    socket.on('room-joined', (payload: { code: string; members: number; teamIndex: number; syncMode: "host" | "sync"; reconnected?: boolean }) => {
       if (settled) return
       settled = true
       clearTimeout(timeout)
       const client = makeWrapper(socket)
-      resolve(Object.assign(client, { teamIndex: payload.teamIndex, syncMode: payload.syncMode, code: payload.code }))
+      resolve(Object.assign(client, { teamIndex: payload.teamIndex, syncMode: payload.syncMode, code: payload.code, reconnected: !!payload.reconnected }))
     })
     socket.on('room-error', (err: { message: string }) => {
       fail(new Error(err.message))
