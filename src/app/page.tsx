@@ -1322,6 +1322,8 @@ export default function Home() {
   const [mpRoom, setMpRoom] = useState<string | null>(null)
   const [mpMembers, setMpMembers] = useState(1)
   const [mpError, setMpError] = useState<string | null>(null)
+  /** true, когда disconnect() вызван ourselves (кнопка/замена connection), а не сервером */
+  const mpIntentionalDisconnectRef = useRef(false)
   // ВАЖНО: ref для защиты от циклов синхронизации
   const isApplyingRemoteRef = useRef(false)
 
@@ -1409,11 +1411,19 @@ export default function Home() {
   // ─── Мультиплеер: обработчики событий от сервера ───
   const handleMpConnect = useCallback(
     (client: MultiplayerClient, _role: "host" | "guest", _code: string, syncMode: "host" | "sync") => {
+      // Если была прежняя connection — корректно закрываем её
+      const prev = mpClientRef.current
+      if (prev && prev !== client) {
+        mpIntentionalDisconnectRef.current = true
+        try { prev.disconnect() } catch {}
+        mpIntentionalDisconnectRef.current = false
+      }
       mpClientRef.current = client
       mpRoleRef.current = _role
       mpSyncModeRef.current = syncMode
       setMpStatus("connected")
       setMpError(null)
+      setMpRoom(_code || null)
       // Слушаем обновления состояния от других участников
       client.on('state-update', (payload) => {
         if (!payload?.state) return
@@ -1431,13 +1441,62 @@ export default function Home() {
       })
       client.on('peer-joined', (payload) => setMpMembers(payload.members))
       client.on('peer-left', (payload) => setMpMembers(payload.members))
+      // Обрыв связи: сервер упал / сменился Wi-Fi /socket закрылся сам.
+      // С reconnection:false переподключения не будет — показываем состояние.
+      client.on('server-disconnect', ({ reason }) => {
+        if (mpClientRef.current !== client) return // уже заменён/закрыт намеренно
+        const intentional = mpIntentionalDisconnectRef.current
+        mpIntentionalDisconnectRef.current = false
+        mpClientRef.current = null
+        mpRoleRef.current = null
+        mpSyncModeRef.current = null
+        setMpRoom(null)
+        setMpMembers(1)
+        setMpStatus(intentional ? "disconnected" : "error")
+        setMpError(intentional ? null : t(lang, "mpDisconnected"))
+        if (!intentional && typeof console !== "undefined") {
+          console.warn("[multiplayer] связь потеряна:", reason)
+        }
+      })
+      client.on('reconnect-error', () => {
+        if (mpClientRef.current !== client) return
+        setMpStatus("error")
+        setMpError(t(lang, "mpReconnectFailed"))
+      })
       // Если мы гость — запрашиваем текущее состояние у хоста
       if (_role === "guest") {
         setTimeout(() => client.requestState(), 500)
       }
     },
-    [],
+    [lang],
   )
+
+  // ─── Мультиплеер: явное отключение по кнопке ───
+  const handleMpDisconnect = useCallback(() => {
+    const client = mpClientRef.current
+    mpClientRef.current = null
+    mpRoleRef.current = null
+    mpSyncModeRef.current = null
+    setMpRoom(null)
+    setMpMembers(1)
+    setMpStatus("disconnected")
+    setMpError(null)
+    if (client) {
+      mpIntentionalDisconnectRef.current = true
+      try { client.disconnect() } catch {}
+    }
+  }, [])
+
+  // ─── Мультиплеер: закрываем сокет при размонтировании страницы ───
+  useEffect(() => {
+    return () => {
+      const client = mpClientRef.current
+      mpClientRef.current = null
+      if (client) {
+        try { client.disconnect() } catch {}
+      }
+    }
+  }, [])
 
   // ─── Мультиплеер: отправляем наше состояние при каждом изменении ───
   useEffect(() => {
@@ -2509,9 +2568,11 @@ export default function Home() {
         open={showMultiplayer}
         onOpenChange={setShowMultiplayer}
         onConnect={handleMpConnect}
+        onDisconnect={handleMpDisconnect}
         status={mpStatus}
         members={mpMembers}
         errorMessage={mpError}
+        roomCode={mpRoom}
         lang={lang}
       />
       <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />

@@ -337,6 +337,16 @@ export const STRINGS = {
   },
   mpStartOver: { ru: "Начать заново", en: "Start over" },
   mpErrorTitle: { ru: "⚠️ Не удалось подключиться", en: "⚠️ Failed to connect" },
+  mpDisconnected: {
+    ru: "Связь с комнатой потеряна. Игра продолжается локально — подключитесь заново, чтобы синхронизироваться.",
+    en: "Connection to the room was lost. The game continues locally — reconnect to sync again.",
+  },
+  mpReconnectFailed: {
+    ru: "Не удалось переподключиться к комнате. Отключитесь и создайте комнату заново.",
+    en: "Reconnecting to the room failed. Disconnect and create the room again.",
+  },
+  mpDisconnect: { ru: "Отключиться", en: "Disconnect" },
+  mpConnectionLost: { ru: "Связь с комнатой потеряна", en: "Room connection lost" },
   mpErrorHint: {
     ru: "Проверьте, что мини-сервер мультиплеера запущен (порт 3003). На Amvera — нужен WebSocket-сервис в проекте.",
     en: "Make sure the multiplayer mini-service is running (port 3003). On Amvera — needs a WebSocket service.",

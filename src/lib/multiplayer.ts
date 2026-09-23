@@ -37,6 +37,10 @@ export interface MultiplayerEvents {
   'state-requested': { from: string }
   'pong-test': { time: number }
   'meta-update': { from: string; meta: MultiplayerMeta }
+  /** Связь с сервером потеряна (сервер упал, Wi-Fi отвалился, ушли из комнаты) */
+  'server-disconnect': { reason: string }
+  /** Ошибка повторного подключения после обрыва */
+  'reconnect-error': { message: string }
 }
 
 const CONNECT_TIMEOUT_MS = 15000  // больше времени на handshake через прокси
@@ -245,7 +249,7 @@ function tryConnect(
 }
 
 function makeWrapper(socket: import('socket.io-client').Socket): MultiplayerClient {
-  return {
+  const wrapper: MultiplayerClient = {
     disconnect: () => socket.disconnect(),
     sendState: (state) => socket.emit('state-update', { state }),
     requestState: () => socket.emit('request-state', {}),
@@ -254,4 +258,13 @@ function makeWrapper(socket: import('socket.io-client').Socket): MultiplayerClie
     on: (event, cb) => socket.on(event, cb as never),
     off: (event, cb) => socket.off(event, cb as never),
   }
+  // Пробрасываем обрывы связи наружу: socket.io с reconnection:false
+  // после разрыва уже не подключается сам — UI должен это показать.
+  socket.on('disconnect', (reason: string) => {
+    wrapper.on('server-disconnect', { reason: reason || 'transport closed' })
+  })
+  socket.io.on('reconnect_error', (err: { message?: string }) => {
+    wrapper.on('reconnect-error', { message: err?.message || 'reconnect failed' })
+  })
+  return wrapper
 }

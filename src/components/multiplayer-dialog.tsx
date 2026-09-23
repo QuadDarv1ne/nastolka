@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Radio, Wifi, X, Copy, Check, Users, Crown, RefreshCw, Settings2 } from "lucide-react"
+import { Radio, Wifi, Copy, Check, Users, Crown, RefreshCw, Settings2, PlugZap } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -25,9 +25,12 @@ interface Props {
   open: boolean
   onOpenChange: (v: boolean) => void
   onConnect: (client: MultiplayerClient, role: "host" | "guest", code: string, syncMode: "host" | "sync") => void
+  onDisconnect: () => void
   status: "disconnected" | "connecting" | "connected" | "error"
   members: number
   errorMessage: string | null
+  /** Код активной комнаты (если подключены) — показывается даже после закрытия диалога */
+  roomCode?: string | null
   lang: Lang
 }
 
@@ -35,9 +38,11 @@ export function MultiplayerDialog({
   open,
   onOpenChange,
   onConnect,
+  onDisconnect,
   status,
   members,
   errorMessage,
+  roomCode,
   lang,
 }: Props) {
   const [mode, setMode] = useState<"choose" | "create" | "join">("choose")
@@ -142,12 +147,30 @@ export function MultiplayerDialog({
               <Users className="mr-1 inline h-4 w-4" />
               {members} {members === 1 ? t(lang, "mpPlayer") : t(lang, "mpPlayers")} {t(lang, "mpInRoom")}
             </div>
-            {createdCode && (
+            {(roomCode || createdCode) && (
               <div className="mt-3 text-sm">
                 <span className="text-muted-foreground">{t(lang, "mpRoomCode")} </span>
-                <span className="font-mono font-bold">{createdCode}</span>
+                <span className="font-mono font-bold">{roomCode || createdCode}</span>
               </div>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 text-rose-600 hover:text-rose-700 dark:text-rose-400"
+              onClick={() => {
+                onDisconnect()
+                reset()
+              }}
+            >
+              <PlugZap className="mr-2 h-4 w-4" />
+              {t(lang, "mpDisconnect")}
+            </Button>
+          </div>
+        )}
+
+        {status === "error" && errorMessage && (
+          <div className="rounded-2xl bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
+            {errorMessage}
           </div>
         )}
 
@@ -177,7 +200,7 @@ export function MultiplayerDialog({
           </div>
         )}
 
-        {status === "disconnected" && mode === "choose" && (
+        {status !== "connected" && mode === "choose" && (
           <div className="space-y-3">
             {/* Выбор режима синхронизации */}
             <div className="rounded-2xl bg-muted/50 p-4">
@@ -275,7 +298,7 @@ export function MultiplayerDialog({
           </div>
         )}
 
-        {status === "disconnected" && mode === "create" && !createdCode && (
+        {status !== "connected" && mode === "create" && !createdCode && (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               {t(lang, "mpCreateDescription")}
@@ -299,7 +322,7 @@ export function MultiplayerDialog({
           </div>
         )}
 
-        {status === "disconnected" && mode === "create" && createdCode && (
+        {createdCode && !connecting && status !== "connected" && mode === "create" && (
           <div className="space-y-3 text-center">
             <div className="rounded-2xl bg-linear-to-br from-amber-400 to-orange-500 p-6 text-white">
               <div className="text-xs font-semibold uppercase tracking-widest opacity-90">
@@ -331,7 +354,7 @@ export function MultiplayerDialog({
           </div>
         )}
 
-        {status === "disconnected" && mode === "join" && (
+        {status !== "connected" && mode === "join" && (
           <div className="space-y-3">
             <div>
               <Label className="mb-2 block">{t(lang, "mpRoomCodeLabel")}</Label>
@@ -365,6 +388,3 @@ export function MultiplayerDialog({
     </Dialog>
   )
 }
-
-// Иконка X добавлена в импорт, чтобы не удалять при неиспользовании (символический импорт)
-void X
