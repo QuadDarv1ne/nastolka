@@ -104,7 +104,7 @@ import {
   hapticTick,
 } from "@/lib/sounds"
 import { recordGameComplete } from "@/lib/achievements"
-import { readItem, readJson, removeItem, writeJson } from "@/lib/storage"
+import { readItem, readJson, removeItem, writeJson, readSessionJson, writeSessionJson, removeSessionItem } from "@/lib/storage"
 import { getNickname, saveNickname, hasNickname, randomNickname, NICKNAME_MAX_LENGTH } from "@/lib/nickname"
 import { getDeviceInfo, type DeviceInfo } from "@/lib/device-info"
 import { useTheme } from "@/hooks/use-theme"
@@ -1646,7 +1646,7 @@ export default function Home() {
         try { prev.disconnect() } catch {}
         mpIntentionalDisconnectRef.current = false
       }
-      mpClientRef.current = client
+mpClientRef.current = client
       mpRoleRef.current = role
       mpSyncModeRef.current = syncMode
       mpSocketIdRef.current = client.socketId ?? null
@@ -1655,6 +1655,11 @@ export default function Home() {
       setMpStatus("connected")
       setMpError(null)
       setMpRoom(code || null)
+      // Запоминаем сессию комнаты: при перезагрузке страницы попробуем
+      // вернуться в неё автоматически (сервер узнает устройство по deviceId).
+      if (code) {
+        writeSessionJson(MP_SESSION_STORAGE_KEY, { roomCode: code, role, syncMode })
+      }
       // Слушаем обновления состояния от других участников
       client.on('state-update', (payload) => {
         if (!payload?.state) return
@@ -1705,16 +1710,16 @@ export default function Home() {
         myTeamIndexRef.current = teamIndex
         setMyTeamIndex(teamIndex)
       }
-      client.on('team-assigned', (payload) => {
+client.on('team-assigned', (payload) => {
         setMpMembers(payload.members)
-        if (payload.memberId && mpSocketIdRef.current && payload.memberId === mpSocketIdRef.current) {
+        if (payload.memberId && payload.memberId === client.deviceId) {
           changeTeam(payload.teamIndex)
         }
       })
       client.on('team-reassigned', (payload) => changeTeam(payload.teamIndex))
       client.on('team-reassigned-all', (payload) => {
         setMpMembers(payload.members)
-        const mine = payload.assignments?.find((a) => a.id === mpSocketIdRef.current)
+        const mine = payload.assignments?.find((a) => a.id === client.deviceId)
         if (mine) changeTeam(mine.teamIndex)
       })
       // Обрыв связи: сервер упал / сменился Wi-Fi /socket закрылся сам.
