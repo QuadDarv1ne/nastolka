@@ -58,7 +58,7 @@ const themeStyles = {
     divider: "border-slate-700",
   },
   blue: {
-    page: "bg-gradient-to-br from-sky-950 via-blue-950 to-indigo-950 text-sky-50",
+    page: "bg-linear-to-br from-sky-950 via-blue-950 to-indigo-950 text-sky-50",
     panel: "border-sky-700/70 bg-sky-900/70 shadow-[0_24px_80px_rgba(14,116,144,0.45)]",
     card: "border-sky-800/80 bg-sky-950/60",
     soft: "bg-sky-950/60",
@@ -154,7 +154,7 @@ function StatBarChart({
               </div>
               <div className={`h-2.5 overflow-hidden rounded-full ${palette.soft}`}>
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500"
+                  className="h-full rounded-full bg-linear-to-r from-cyan-400 via-sky-400 to-blue-500"
                   style={{ width: `${item.percent}%` }}
                 />
               </div>
@@ -180,20 +180,22 @@ export default function AdminPage() {
   const palette = themeStyles[theme];
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    try {
       const savedTheme = window.sessionStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null;
       if (savedTheme && savedTheme in themeStyles) {
         setTheme(savedTheme);
       }
+    } catch {
+      // sessionStorage недоступен (приватный режим / блокировка) — просто дефолт
     }
   }, []);
 
   const readStoredToken = () => {
-    if (typeof window === "undefined") {
+    try {
+      return sessionStorage.getItem(STORAGE_KEY) || "";
+    } catch {
       return "";
     }
-
-    return sessionStorage.getItem(STORAGE_KEY) || "";
   };
 
   const loadStats = async (tokenOrKey: string, mode: "token" | "key" = "token") => {
@@ -216,8 +218,10 @@ export default function AdminPage() {
       setTimeLeftMs(Math.max(expiresAt - Date.now(), 0));
       setGeneratedUrl("");
 
-      if (typeof window !== "undefined") {
+      try {
         sessionStorage.setItem(STORAGE_KEY, tokenOrKey);
+      } catch {
+        // приватный режим — сессия просто не переживёт перезагрузку вкладки
       }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить статистику");
@@ -275,8 +279,10 @@ export default function AdminPage() {
 
   const onThemeChange = (nextTheme: ThemeMode) => {
     setTheme(nextTheme);
-    if (typeof window !== "undefined") {
+    try {
       window.sessionStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    } catch {
+      // ignore
     }
   };
 
@@ -340,11 +346,13 @@ export default function AdminPage() {
   };
 
   const logout = () => {
-    if (typeof window !== "undefined") {
+    try {
       sessionStorage.removeItem(STORAGE_KEY);
       const url = new URL(window.location.href);
       url.searchParams.delete("token");
       window.history.replaceState({}, "", url.pathname);
+    } catch {
+      // ignore
     }
 
     setGeneratedUrl("");
@@ -410,7 +418,7 @@ export default function AdminPage() {
 
             <div className="flex flex-wrap items-center gap-3">
               <div className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs ${palette.badge}`}>
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500" />
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-linear-to-r from-cyan-400 to-blue-500" />
                 Theme: {themeBadgeLabel}
               </div>
               {renderThemeToggle()}

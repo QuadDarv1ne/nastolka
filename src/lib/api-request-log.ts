@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import type { NextRequest } from "next/server";
 
@@ -24,7 +24,23 @@ export type VisitorLogEntry = {
 };
 
 const LOG_FILE = resolve(process.env.API_VISITOR_LOG_FILE || "logs/api-visitors.jsonl");
+const LOG_ROTATE_BYTES = Number(process.env.API_VISITOR_LOG_MAX_BYTES || 5 * 1024 * 1024); // 5 МБ
 mkdirSync(dirname(LOG_FILE), { recursive: true });
+
+/**
+ * Простая ротация: если лог вырос больше лимита, текущий файл
+ * переименовывается в .old (старый .old затирается), а новый пишется с нуля.
+ * Без этого файл растёт бесконечно и readVisitorLogs читает его целиком в память.
+ */
+const rotateIfNeeded = () => {
+  try {
+    if (!existsSync(LOG_FILE)) return;
+    if (statSync(LOG_FILE).size < LOG_ROTATE_BYTES) return;
+    renameSync(LOG_FILE, `${LOG_FILE}.old`);
+  } catch {
+    // ротация не критична — просто продолжаем писать в текущий файл
+  }
+};
 
 const firstHeader = (request: NextRequest, names: string[]) => {
   for (const name of names) {
@@ -89,6 +105,7 @@ const normalizeEntries = (entries: unknown[]): VisitorLogEntry[] => entries
 
 export const appendVisitorLog = (entry: VisitorLogEntry) => {
   try {
+    rotateIfNeeded();
     appendFileSync(LOG_FILE, `${JSON.stringify(entry)}\n`, "utf8");
   } catch (error) {
     console.error("[api-log] failed to write visitor log:", error);

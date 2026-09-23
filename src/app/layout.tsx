@@ -11,8 +11,8 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: [
-      { url: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg", sizes: "any" },
       { url: "/icon.svg", sizes: "any", type: "image/svg+xml" },
+      { url: "/logo.svg", sizes: "any", type: "image/svg+xml" },
     ],
     apple: "/icon.svg",
   },

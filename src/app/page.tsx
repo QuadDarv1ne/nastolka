@@ -160,6 +160,27 @@ const initialState: State = {
   countdownSeconds: 0,
 }
 
+/* ─────────────────── Валидация состояния из мультиплеера ─────────────────── */
+
+const KNOWN_PHASES: Phase[] = [
+  "setup", "ready", "rolling", "method", "task", "countdown", "playing", "round_end", "game_over",
+]
+
+/**
+ * Проверить, что входящее состояние из сети похоже на валидное State.
+ * Мультиплеер ретранслирует любые пакеты без проверки, поэтому мусорное
+ * или битое payload.state не должно попадать в reducer и ломать UI.
+ */
+function isValidRemoteState(candidate: unknown): candidate is State {
+  if (!candidate || typeof candidate !== "object") return false
+  const s = candidate as Partial<State>
+  if (!KNOWN_PHASES.includes(s.phase as Phase)) return false
+  if (!Array.isArray(s.teams) || s.teams.length < 2 || s.teams.length > 4) return false
+  if (!s.teams.every((t) => t && typeof t === "object" && typeof t.name === "string" && typeof t.score === "number")) return false
+  if (typeof s.activeTeam !== "number" || s.activeTeam < 0 || s.activeTeam >= s.teams.length) return false
+  return true
+}
+
 function makeReducer() {
   return function reducer(state: State, action: Action): State {
     switch (action.type) {
@@ -1327,6 +1348,15 @@ export default function Home() {
   const mpIntentionalDisconnectRef = useRef(false)
   // ВАЖНО: ref для защиты от циклов синхронизации
   const isApplyingRemoteRef = useRef(false)
+  /**
+   * Последнее состояние, полученное из сети (по ссылке).
+   * HYDRATE возвращает action.state как есть, поэтому сразу после применения
+   * state === lastRemoteStateRef.current — и эффект отправки точно знает,
+   * что это входящее состояние, а не локальное изменение. В отличие от
+   * isApplyingRemoteRef (сбрасываемого по setTimeout), сравнение по ссылке
+   * детерминировано и не зависит от порядка таймеров/эффектов React.
+   */
+  const lastRemoteStateRef = useRef<State | null>(null)
 
   // ─── WordPicker: обновляется при изменении customWords/enabledCategories/enabledDifficulties ───
   const pickerRef = useRef<WordPicker>(new WordPicker())
@@ -1418,8 +1448,14 @@ export default function Home() {
       // Слушаем обновления состояния от других участников
       client.on('state-update', (payload) => {
         if (!payload?.state) return
+        // Битое/мусорное состояние не должно попадать в reducer
+        if (!isValidRemoteState(payload.state)) {
+          if (typeof console !== "undefined") console.warn("[multiplayer] отклонено некорректное состояние:", payload.state)
+          return
+        }
         // В режиме хост гости получают состояние от хоста.
         // В режиме sync — любой участник может отправлять.
+        lastRemoteStateRef.current = payload.state
         isApplyingRemoteRef.current = true
         dispatch({ type: "HYDRATE", state: payload.state })
         // Сбрасываем флаг в следующем тике
@@ -1427,6 +1463,9 @@ export default function Home() {
       })
       // Слушаем запросы состояния от новых участников
       client.on('state-requested', (payload) => {
+        // В режиме host отвечает только хост: запертый гость может держать
+        // устаревшее состояние, и новый участник получил бы его последним.
+        if (mpSyncModeRef.current === "host" && mpRoleRef.current === "guest") return
         // Отправляем наше состояние новому участнику
         client.sendStateTo(payload.from, stateRef.current)
       })
@@ -1493,7 +1532,8 @@ export default function Home() {
   useEffect(() => {
     if (!hydrated) return
     if (mpStatus !== "connected") return
-    if (isApplyingRemoteRef.current) return  // не отправляем то, что только что получили
+    if (isApplyingRemoteRef.current) return  // не отправляем в том же тике, что получили
+    if (state === lastRemoteStateRef.current) return  // это и есть только что полученное состояние (детерминированная защита от эха)
     if (!mpClientRef.current) return
     if (state.phase === "setup") return  // не синхронизируем setup
     // В режиме host: только хост отправляет состояние (гости только слушают)
@@ -1636,9 +1676,12 @@ export default function Home() {
       lastTickRef.current = -1
       return
     }
+    // В режиме host таймером управляет хост: локальный TICK у запертого гостя
+    // дёргал бы secondsLeft вразрез с приходящим состоянием (таймер «прыгал» бы).
+    if (isMpGuestLocked) return
     const id = setInterval(() => dispatch({ type: "TICK" }), 1000)
     return () => clearInterval(id)
-  }, [state.phase])
+  }, [state.phase, isMpGuestLocked])
 
   useEffect(() => {
     if (state.phase !== "playing") return
@@ -1652,15 +1695,19 @@ export default function Home() {
   /* Отсчёт 3-2-1-Старт! перед началом раунда */
   useEffect(() => {
     if (state.phase !== "countdown") return
+    // В режиме host отсчёт ведёт хост — гость только отображает его состояние
+    if (isMpGuestLocked) return
     playTick(true)
     hapticTick()
     const id = setTimeout(() => dispatch({ type: "COUNTDOWN_TICK" }), 1000)
     return () => clearTimeout(id)
-  }, [state.phase, state.countdownSeconds])
+  }, [state.phase, state.countdownSeconds, isMpGuestLocked])
 
   /* Свайпы на мобильных: вправо — угадали, влево — пропустить */
   useEffect(() => {
     if (state.phase !== "playing" || state.paused) return
+    // Запертый гость (режим host) не действует — только хост управляет раундом
+    if (isMpGuestLocked) return
     let startX = 0
     let startY = 0
     const onStart = (e: TouchEvent) => {
