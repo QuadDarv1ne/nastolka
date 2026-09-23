@@ -305,6 +305,53 @@ function makeReducer() {
         }
       }
 
+      /* Повтор раунда: команда соперников отменяет раунд (очки не засчитываются),
+       * раунд начинается заново с тем же словом/методом, но с -10 сек. */
+      case "REPLAY_ROUND": {
+        // Применять можно только во время раунда (playing) или на его результате (round_end)
+        if (state.phase !== "playing" && state.phase !== "round_end") return state
+        // Применяет команда соперников — не та, чей раунд
+        if (action.byTeam === state.activeTeam) return state
+        const byTeamChips = state.teams[action.byTeam]?.chips
+        if (!byTeamChips || byTeamChips.replay <= 0) return state
+        // Новое время: -10 сек от полного времени раунда, минимум 15 сек
+        const replaySeconds = Math.max(state.roundSeconds - 10, 15)
+        // Если слово уже было угадано — откатываем очки и историю этого раунда
+        let teams = state.teams
+        let history = state.history
+        let winner = state.winner
+        if (state.phase === "round_end" && state.lastRoundResult === "scored" && state.lastRoundPoints > 0 && history.length > 0) {
+          const lastEntry = history[history.length - 1]
+          teams = teams.map((tm, i) =>
+            i === lastEntry.team ? { ...tm, score: tm.score - lastEntry.points } : tm
+          )
+          history = history.slice(0, -1)
+          // Победа отменяется вместе с очками
+          if (winner !== null && teams[winner] && teams[winner].score < state.targetScore) winner = null
+        }
+        // Тратим фишку replay у команды, которая её применила
+        teams = teams.map((tm, i) =>
+          i === action.byTeam ? { ...tm, chips: { ...tm.chips, replay: tm.chips.replay - 1 } } : tm
+        )
+        // Раунд заново: то же слово и метод, слово снова спрятано
+        return {
+          ...state,
+          teams,
+          history,
+          winner,
+          phase: state.currentWord && state.currentMethod ? "task" : "ready",
+          wordRevealed: false,
+          secondsLeft: replaySeconds,
+          lastRoundResult: null,
+          lastRoundPoints: 0,
+          lastRoundBasePoints: 0,
+          lastRoundMultiplier: 1,
+          multiplier: 1,
+          paused: false,
+          countdownSeconds: 0,
+        }
+      }
+
       case "USE_CHIP": {
         if (state.phase !== "playing") return state
         const team = state.activeTeam
@@ -1344,6 +1391,10 @@ export default function Home() {
   const [mpRoom, setMpRoom] = useState<string | null>(null)
   const [mpMembers, setMpMembers] = useState(1)
   const [mpError, setMpError] = useState<string | null>(null)
+  /** Номер моей команды в мультиплеере (назначается сервером; null — офлайн) */
+  const [myTeamIndex, setMyTeamIndex] = useState<number | null>(null)
+  /** Мой socketId — для сопоставления team-assigned/team-reassigned с собой */
+  const mpSocketIdRef = useRef<string | null>(null)
   /** true, когда disconnect() вызван ourselves (кнопка/замена connection), а не сервером */
   const mpIntentionalDisconnectRef = useRef(false)
   // ВАЖНО: ref для защиты от циклов синхронизации
@@ -1431,7 +1482,7 @@ export default function Home() {
 
   // ─── Мультиплеер: обработчики событий от сервера ───
   const handleMpConnect = useCallback(
-    (client: MultiplayerClient, _role: "host" | "guest", _code: string, syncMode: "host" | "sync") => {
+    (client: MultiplayerClient, role: "host" | "guest", code: string, syncMode: "host" | "sync", teamIndex: number) => {
       // Если была прежняя connection — корректно закрываем её
       const prev = mpClientRef.current
       if (prev && prev !== client) {
@@ -1440,11 +1491,13 @@ export default function Home() {
         mpIntentionalDisconnectRef.current = false
       }
       mpClientRef.current = client
-      mpRoleRef.current = _role
+      mpRoleRef.current = role
       mpSyncModeRef.current = syncMode
+      mpSocketIdRef.current = client.socketId ?? null
+      setMyTeamIndex(teamIndex)
       setMpStatus("connected")
       setMpError(null)
-      setMpRoom(_code || null)
+      setMpRoom(code || null)
       // Слушаем обновления состояния от других участников
       client.on('state-update', (payload) => {
         if (!payload?.state) return
@@ -1471,6 +1524,19 @@ export default function Home() {
       })
       client.on('peer-joined', (payload) => setMpMembers(payload.members))
       client.on('peer-left', (payload) => setMpMembers(payload.members))
+      // Назначение/перемешивание команд (при полном лобби 4/4 сервер рандомизирует)
+      client.on('team-assigned', (payload) => {
+        setMpMembers(payload.members)
+        if (payload.memberId && mpSocketIdRef.current && payload.memberId === mpSocketIdRef.current) {
+          setMyTeamIndex(payload.teamIndex)
+        }
+      })
+      client.on('team-reassigned', (payload) => setMyTeamIndex(payload.teamIndex))
+      client.on('team-reassigned-all', (payload) => {
+        setMpMembers(payload.members)
+        const mine = payload.assignments?.find((a) => a.id === mpSocketIdRef.current)
+        if (mine) setMyTeamIndex(mine.teamIndex)
+      })
       // Обрыв связи: сервер упал / сменился Wi-Fi /socket закрылся сам.
       // С reconnection:false переподключения не будет — показываем состояние.
       client.on('server-disconnect', ({ reason }) => {
@@ -1480,6 +1546,8 @@ export default function Home() {
         mpClientRef.current = null
         mpRoleRef.current = null
         mpSyncModeRef.current = null
+        mpSocketIdRef.current = null
+        setMyTeamIndex(null)
         setMpRoom(null)
         setMpMembers(1)
         setMpStatus(intentional ? "disconnected" : "error")
@@ -1494,7 +1562,7 @@ export default function Home() {
         setMpError(t(lang, "mpReconnectFailed"))
       })
       // Если мы гость — запрашиваем текущее состояние у хоста
-      if (_role === "guest") {
+      if (role === "guest") {
         setTimeout(() => client.requestState(), 500)
       }
     },
@@ -1507,6 +1575,8 @@ export default function Home() {
     mpClientRef.current = null
     mpRoleRef.current = null
     mpSyncModeRef.current = null
+    mpSocketIdRef.current = null
+    setMyTeamIndex(null)
     setMpRoom(null)
     setMpMembers(1)
     setMpStatus("disconnected")
@@ -1542,11 +1612,32 @@ export default function Home() {
     mpClientRef.current.sendState(state)
   }, [state, mpStatus, hydrated])
 
-  // ─── Мультиплеер: в режиме host гости не могут действовать (UI блокируется) ───
-  const isMpGuestLocked =
-    mpStatus === "connected" &&
+  // ─── Мультиплеер: кто может действовать ───
+  // В режиме host каждый игрок играет только раунды СВОЕЙ команды
+  // (activeTeam === myTeamIndex), чужие раунды смотрит. Хост (команда 0)
+  // дополнительно управляет setup-фазой и отвечает новым участникам.
+  // В режиме sync действуют все (старое поведение).
+  const isMpConnected = mpStatus === "connected"
+  const isMyTurn =
+    !isMpConnected ||
+    mpSyncModeRef.current === "sync" ||
+    myTeamIndex === null ||
+    state.activeTeam === myTeamIndex
+  // Действия раунда доступны только владельцу раунда (или всем в sync/офлайн)
+  const canAct = isMyTurn
+  // Хост-режим: активный игрок отключился (команд больше, чем участников)?
+  const activePlayerMissing =
+    isMpConnected &&
     mpSyncModeRef.current === "host" &&
-    mpRoleRef.current === "guest"
+    myTeamIndex !== null &&
+    state.activeTeam !== myTeamIndex &&
+    state.activeTeam >= mpMembers
+  // Наблюдатель в чужом раунде (для карточки «Повтор раунда»)
+  const isWatchingOpponent =
+    isMpConnected &&
+    mpSyncModeRef.current === "host" &&
+    myTeamIndex !== null &&
+    state.activeTeam !== myTeamIndex
 
   // ─── Сохранение состояния в localStorage при изменениях ───
   // Debounce 400 мс: таймер тикает каждую секунду, и без задержки мы
@@ -1635,12 +1726,12 @@ export default function Home() {
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return
       // Не срабатываем, если диалог открыт
       if (showRules || showHistory || showAchievements || showMultiplayer || showSettings) return
-      if (isMpGuestLocked) return
+      if (!canAct) return
 
       switch (e.key.toLowerCase()) {
         case " ":  // Space — бросить кубик / угадали / передать ход
           e.preventDefault()
-          if (state.phase === "ready" && !isMpGuestLocked) handleRoll()
+          if (state.phase === "ready") handleRoll()
           else if (state.phase === "playing" && !state.paused) dispatch({ type: "SCORE" })
           else if (state.phase === "round_end") dispatch({ type: "NEXT_TURN" })
           break
@@ -1667,7 +1758,7 @@ export default function Home() {
     }
     window.addEventListener("keydown", handleKey)
     return () => window.removeEventListener("keydown", handleKey)
-  }, [state.phase, state.paused, showRules, showHistory, showAchievements, showMultiplayer, showSettings, isMpGuestLocked])
+  }, [state.phase, state.paused, showRules, showHistory, showAchievements, showMultiplayer, showSettings, canAct])
 
   /* Таймер раунда + тик-звук в последние 10 секунд */
   const lastTickRef = useRef<number>(-1)
@@ -1676,12 +1767,13 @@ export default function Home() {
       lastTickRef.current = -1
       return
     }
-    // В режиме host таймером управляет хост: локальный TICK у запертого гостя
-    // дёргал бы secondsLeft вразрез с приходящим состоянием (таймер «прыгал» бы).
-    if (isMpGuestLocked) return
+    // Таймером управляет владелец раунда (в режиме host): локальный TICK у
+    // наблюдателя дёргал бы secondsLeft вразрез с приходящим состоянием.
+    // Если активный игрок вышел из комнаты — хост подхватывает таймер.
+    if (isMpConnected && mpSyncModeRef.current === "host" && !isMyTurn && !activePlayerMissing) return
     const id = setInterval(() => dispatch({ type: "TICK" }), 1000)
     return () => clearInterval(id)
-  }, [state.phase, isMpGuestLocked])
+  }, [state.phase, isMpConnected, isMyTurn, activePlayerMissing])
 
   useEffect(() => {
     if (state.phase !== "playing") return
@@ -1695,19 +1787,19 @@ export default function Home() {
   /* Отсчёт 3-2-1-Старт! перед началом раунда */
   useEffect(() => {
     if (state.phase !== "countdown") return
-    // В режиме host отсчёт ведёт хост — гость только отображает его состояние
-    if (isMpGuestLocked) return
+    // Отсчёт ведёт владелец раунда — остальные только отображают его состояние
+    if (isMpConnected && mpSyncModeRef.current === "host" && !isMyTurn && !activePlayerMissing) return
     playTick(true)
     hapticTick()
     const id = setTimeout(() => dispatch({ type: "COUNTDOWN_TICK" }), 1000)
     return () => clearTimeout(id)
-  }, [state.phase, state.countdownSeconds, isMpGuestLocked])
+  }, [state.phase, state.countdownSeconds, isMpConnected, isMyTurn, activePlayerMissing])
 
   /* Свайпы на мобильных: вправо — угадали, влево — пропустить */
   useEffect(() => {
     if (state.phase !== "playing" || state.paused) return
-    // Запертый гость (режим host) не действует — только хост управляет раундом
-    if (isMpGuestLocked) return
+    // Наблюдатель (чужой раунд в режиме host) не действует
+    if (!canAct) return
     let startX = 0
     let startY = 0
     const onStart = (e: TouchEvent) => {
@@ -1737,7 +1829,7 @@ export default function Home() {
       window.removeEventListener("touchstart", onStart)
       window.removeEventListener("touchend", onEnd)
     }
-  }, [state.phase, state.paused, isMpGuestLocked])
+  }, [state.phase, state.paused, canAct])
 
   /* Звук при завершении раунда */
   const lastResultRef = useRef<string>("")
@@ -1971,16 +2063,16 @@ export default function Home() {
                   <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">
                     {t(lang, "onePlayerHint")}
                   </p>
-                  {isMpGuestLocked && (
+                  {!canAct && (
                     <div className="mt-4 rounded-xl bg-amber-500/15 p-3 text-sm text-amber-700 dark:text-amber-400">
-                      {t(lang, "mpGuestCantAct")}
+                      {isWatchingOpponent ? t(lang, "mpWatchingRound") : t(lang, "mpGuestCantAct")}
                     </div>
                   )}
                   <Button
                     size="lg"
                     className="mt-6 w-full max-w-xs text-base font-bold btn-roll-glow"
                     onClick={handleRoll}
-                    disabled={isMpGuestLocked}
+                    disabled={!canAct}
                   >
                     <Dices className="mr-2 h-5 w-5" />
                     {t(lang, "rollDice")}
@@ -2012,7 +2104,7 @@ export default function Home() {
                       <span className="text-3xl">{activeTeam.emoji}</span>
                       <span className="font-semibold">{activeTeam.name}</span>
                     </div>
-                    <Button variant="ghost" size="sm" disabled={isMpGuestLocked} onClick={() => dispatch({ type: "BACK_TO_SETUP" })}>
+                    <Button variant="ghost" size="sm" disabled={!canAct} onClick={() => dispatch({ type: "BACK_TO_SETUP" })}>
                       {t(lang, "exit")}
                     </Button>
                   </div>
@@ -2054,7 +2146,7 @@ export default function Home() {
                               <button
                                 key={m.id}
                                 type="button"
-                                disabled={isMpGuestLocked}
+                                disabled={!canAct}
                                 onClick={() => dispatch({ type: "CHOOSE_METHOD", methodId: m.id, word: pickerRef.current.next() })}
                                 className={`flex flex-col items-center gap-1 rounded-2xl ${m.color} p-3 font-bold uppercase tracking-wide shadow transition hover:scale-105 disabled:pointer-events-none disabled:opacity-40`}
                               >
@@ -2068,7 +2160,7 @@ export default function Home() {
 
                     {/* Если выпал Ещё раз — кнопка повторного броска */}
                     {state.phase === "method" && state.currentMethod?.id === "reroll" && (
-                      <Button size="lg" onClick={handleRoll} disabled={isMpGuestLocked} className="font-bold">
+                      <Button size="lg" onClick={handleRoll} disabled={!canAct} className="font-bold">
                         <Dices className="mr-2 h-5 w-5" />
                         {t(lang, "reroll")}
                       </Button>
@@ -2079,7 +2171,7 @@ export default function Home() {
                       state.currentMethod &&
                       state.currentMethod.id !== "reroll" &&
                       (state.currentMethod.id !== "choice" || state.chosenMethodForChoice !== null) && (
-                        <Button size="lg" onClick={() => dispatch({ type: "SHOW_WORD" })} disabled={isMpGuestLocked} className="font-bold">
+                        <Button size="lg" onClick={() => dispatch({ type: "SHOW_WORD" })} disabled={!canAct} className="font-bold">
                           <ArrowRight className="mr-2 h-5 w-5" />
                           {t(lang, "toWord")}
                         </Button>
@@ -2104,7 +2196,7 @@ export default function Home() {
                           size="lg"
                           variant="default"
                           className="mt-4 w-full font-bold"
-                          disabled={isMpGuestLocked}
+                          disabled={!canAct}
                           onClick={() =>
                             dispatch({ type: isCountdownEnabled() ? "START_COUNTDOWN" : "REVEAL_WORD" })
                           }
@@ -2180,7 +2272,7 @@ export default function Home() {
                     <Timer secondsLeft={state.secondsLeft} total={state.roundSeconds} paused={state.paused} />
                     <button
                       type="button"
-                      disabled={isMpGuestLocked}
+                      disabled={!canAct}
                       onClick={() => dispatch({ type: state.paused ? "RESUME" : "PAUSE" })}
                       className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-muted px-3 text-xs font-semibold text-muted-foreground transition hover:bg-foreground hover:text-background disabled:pointer-events-none disabled:opacity-40"
                     >
@@ -2273,7 +2365,7 @@ export default function Home() {
                   )}
 
                   {/* Фишки команды (×2, +10 сек, +5 сек) */}
-                  {!state.paused && <ChipsBar state={state} dispatch={dispatch} locked={isMpGuestLocked} />}
+                  {!state.paused && <ChipsBar state={state} dispatch={dispatch} locked={!canAct} />}
 
                   <div className="mt-4 grid grid-cols-2 gap-3 sm:mt-6">
                     <Button
@@ -2283,7 +2375,7 @@ export default function Home() {
                         dispatch({ type: "SCORE" })
                         hapticScore()
                       }}
-                      disabled={state.paused || isMpGuestLocked}
+                      disabled={state.paused || !canAct}
                     >
                       <Check className="mr-2 h-5 w-5" />
                       {t(lang, "guessed")}
@@ -2296,7 +2388,7 @@ export default function Home() {
                         dispatch({ type: "SKIP" })
                         hapticSkip()
                       }}
-                      disabled={state.paused || isMpGuestLocked}
+                      disabled={state.paused || !canAct}
                     >
                       <X className="mr-2 h-5 w-5" />
                       {t(lang, "skip")}
@@ -2304,7 +2396,7 @@ export default function Home() {
                   </div>
                   <button
                     type="button"
-                    disabled={isMpGuestLocked}
+                    disabled={!canAct}
                     onClick={() => {
                       playSwap()
                       if (state.currentWord) {
@@ -2413,7 +2505,7 @@ export default function Home() {
                     size="lg"
                     className="mt-6 w-full font-bold"
                     onClick={() => dispatch({ type: "NEXT_TURN" })}
-                    disabled={isMpGuestLocked}
+                    disabled={!canAct}
                   >
                     <ChevronRight className="mr-2 h-5 w-5" />
                     {t(lang, "passTurn")}
@@ -2423,7 +2515,7 @@ export default function Home() {
                   {state.history.length > 0 && (
                     <button
                       type="button"
-                      disabled={isMpGuestLocked}
+                      disabled={!canAct}
                       onClick={() => dispatch({ type: "UNDO_ROUND" })}
                       className="mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground"
                     >
@@ -2437,7 +2529,7 @@ export default function Home() {
                       size="lg"
                       className="mt-2 w-full bg-linear-to-r from-fuchsia-600 to-violet-700 font-bold text-white hover:from-fuchsia-700 hover:to-violet-800"
                       onClick={() => dispatch({ type: "STEAL_TURN" })}
-                      disabled={isMpGuestLocked}
+                      disabled={!canAct}
                     >
                       <Dices className="mr-2 h-5 w-5" />
                       {t(lang, "stealTurnButton")}
@@ -2572,7 +2664,7 @@ export default function Home() {
                     <Button
                       size="lg"
                       className="flex-1 font-bold"
-                      disabled={isMpGuestLocked}
+                      disabled={!canAct}
                       onClick={() => {
                         const newSteal = Math.floor(Math.random() * state.teams.length)
                         dispatch({ type: "RESTART", word: pickerRef.current.next(), stealTeam: newSteal })
@@ -2604,7 +2696,7 @@ export default function Home() {
                     size="sm"
                     variant="ghost"
                     className="mt-2 w-full"
-                    disabled={isMpGuestLocked}
+                    disabled={!canAct}
                     onClick={() => dispatch({ type: "BACK_TO_SETUP" })}
                   >
                     <PartyPopper className="mr-2 h-4 w-4" />

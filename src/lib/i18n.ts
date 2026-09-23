@@ -340,6 +340,35 @@ export const STRINGS = {
     en: "Reconnecting to the room failed. Disconnect and create the room again.",
   },
   mpDisconnect: { ru: "Отключиться", en: "Disconnect" },
+  // Лобби онлайн (третий вид)
+  mpLobbiesTitle: { ru: "Лобби онлайн", en: "Open lobbies" },
+  mpLobbiesDescription: { ru: "Открытые комнаты прямо сейчас. Обновляется автоматически.", en: "Open rooms right now. Refreshes automatically." },
+  mpLobbiesLoading: { ru: "Загружаем список лобби…", en: "Loading lobby list…" },
+  mpLobbiesEmpty: {
+    ru: "Пока нет открытых комнат. Создайте свою — она появится в списке у других.",
+    en: "No open rooms yet. Create yours — it will appear in the list for others.",
+  },
+  mpLobbiesRefresh: { ru: "Обновить список", en: "Refresh list" },
+  mpLobbyOpen: { ru: "лобби", en: "lobby" },
+  mpLobbyPlaying: { ru: "в игре", en: "playing" },
+  mpLobbyJoin: { ru: "Войти", en: "Join" },
+  // Моя команда в мультиплеере
+  mpMyTeam: { ru: "Ваша команда", en: "Your team" },
+  mpTeamAssigned: { ru: "Вам назначена команда", en: "You were assigned team" },
+  mpTeamShuffled: { ru: "Лобби заполнено — команды распределены случайно!", en: "Lobby is full — teams were shuffled randomly!" },
+  mpWatchingRound: {
+    ru: "Сейчас играет другая команда — вы можете только смотреть. Ваша фишка «Повтор раунда» доступна под таймером.",
+    en: "Another team is playing — you can only watch. Your \"Round replay\" chip is available under the timer.",
+  },
+  // Фишка «Повтор раунда»
+  replayChipTitle: { ru: "Повтор раунда", en: "Round replay" },
+  replayChipHint: {
+    ru: "Отменяет раунд соперников: отгаданное слово не засчитывается, раунд начнётся заново с −10 сек. Использовать можно только во время их раунда.",
+    en: "Cancels the opponents' round: the guessed word is not counted, the round restarts with −10 sec. Can be used only during their round.",
+  },
+  replayChipUsed: { ru: "Повтор раунда применён — раунд начнётся заново с −10 сек", en: "Round replay applied — the round restarts with −10 sec" },
+  replayChipEmpty: { ru: "Фишка «Повтор раунда» уже использована", en: "\"Round replay\" chip is already used" },
+  replayChipBadge: { ru: "−10 сек", en: "−10 sec" },
   mpErrorHint: {
     ru: "Проверьте, что мини-сервер мультиплеера запущен (порт 3003). На Amvera — нужен WebSocket-сервис в проекте.",
     en: "Make sure the multiplayer mini-service is running (port 3003). On Amvera — needs a WebSocket service.",

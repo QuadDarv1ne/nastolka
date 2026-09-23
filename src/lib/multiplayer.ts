@@ -19,6 +19,8 @@ export interface MultiplayerClient {
   sendMeta: (meta: MultiplayerMeta) => void
   /** Запросить список открытых лобби у сервера */
   listLobbies: () => void
+  /** Мой socketId (для сопоставления team-assigned с собой) */
+  socketId: string
   on: <K extends keyof MultiplayerEvents>(event: K, cb: (payload: MultiplayerEvents[K]) => void) => void
   off: <K extends keyof MultiplayerEvents>(event: K, cb: (payload: MultiplayerEvents[K]) => void) => void
 }
@@ -158,6 +160,30 @@ export function setManualMpUrl(url: string) {
 /** Путь socket.io — должен совпадать с MP_PATH в mini-services/nastolka-multiplayer */
 const WS_PATH = "/mp"
 
+/**
+ * Одноразовый запрос списка открытых лобби: подключаемся, спрашиваем,
+ * получаем ответ, отключаемся. Используется в окне «Лобби онлайн».
+ */
+export async function listLobbiesOnce(timeoutMs = 8000): Promise<LobbyInfo[]> {
+  const socket = await connect()
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      clearTimeout(timeout)
+      try { socket.disconnect() } catch {}
+    }
+    const timeout = setTimeout(() => {
+      cleanup()
+      reject(new Error('Сервер не ответил со списком лобби за 8 сек.'))
+    }, timeoutMs)
+    socket.once('lobbies-list', ({ lobbies }: { lobbies: LobbyInfo[] }) => {
+      clearTimeout(timeout)
+      cleanup()
+      resolve(lobbies ?? [])
+    })
+    socket.emit('list-lobbies', {})
+  })
+}
+
 /** Кандидат на подключение: человекочитаемая подпись + url + опции сокета */
 interface Candidate {
   label: string
@@ -279,6 +305,7 @@ function makeWrapper(socket: import('socket.io-client').Socket): MultiplayerClie
     sendStateTo: (to, state) => socket.emit('send-state-to', { to, state }),
     sendMeta: (meta) => socket.emit('meta-update', { meta }),
     listLobbies: () => socket.emit('list-lobbies', {}),
+    socketId: socket.id ?? '',
     on: (event, cb) => {
       socket.on(event, cb as never)
       let set = localHandlers.get(event)

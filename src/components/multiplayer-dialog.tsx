@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Radio, Wifi, Copy, Check, Users, Crown, RefreshCw, Settings2, PlugZap } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
+import { Radio, Wifi, Copy, Check, Users, Crown, RefreshCw, Settings2, PlugZap, Globe } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -15,22 +15,26 @@ import { Label } from "@/components/ui/label"
 import {
   createRoom,
   joinRoom,
+  listLobbiesOnce,
   getManualMpUrl,
   setManualMpUrl,
   type MultiplayerClient,
+  type LobbyInfo,
 } from "@/lib/multiplayer"
 import { t, type Lang } from "@/lib/i18n"
 
 interface Props {
   open: boolean
   onOpenChange: (v: boolean) => void
-  onConnect: (client: MultiplayerClient, role: "host" | "guest", code: string, syncMode: "host" | "sync") => void
+  onConnect: (client: MultiplayerClient, role: "host" | "guest", code: string, syncMode: "host" | "sync", teamIndex: number) => void
   onDisconnect: () => void
   status: "disconnected" | "connecting" | "connected" | "error"
   members: number
   errorMessage: string | null
   /** Код активной комнаты (если подключены) — показывается даже после закрытия диалога */
   roomCode?: string | null
+  /** Моя команда в комнате (если подключены) */
+  myTeamIndex?: number | null
   lang: Lang
 }
 
@@ -45,16 +49,22 @@ export function MultiplayerDialog({
   roomCode,
   lang,
 }: Props) {
-  const [mode, setMode] = useState<"choose" | "create" | "join">("choose")
+  const [mode, setMode] = useState<"choose" | "create" | "join" | "lobbies">("choose")
   const [code, setCode] = useState("")
   const [createdCode, setCreatedCode] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [connecting, setConnecting] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const [syncMode, setSyncMode] = useState<"host" | "sync">("host")
+  const [lobbies, setLobbies] = useState<LobbyInfo[] | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [mpUrl, setMpUrl] = useState("")
   const [mpUrlSaved, setMpUrlSaved] = useState(false)
+
+  // Подтягиваем сохранённый адрес сервера (только на клиенте)
+  useEffect(() => {
+    setMpUrl(getManualMpUrl())
+  }, [open])
 
   // Подтягиваем сохранённый адрес сервера (только на клиенте)
   useEffect(() => {
@@ -73,7 +83,7 @@ export function MultiplayerDialog({
     try {
       const client = await createRoom(syncMode)
       setCreatedCode(client.code)
-      onConnect(client, "host", client.code, syncMode)
+      onConnect(client, "host", client.code, syncMode, client.teamIndex)
     } catch (e) {
       const msg = e instanceof Error ? e.message : t(lang, "mpErrorTitle")
       setLocalError(msg)
@@ -83,13 +93,15 @@ export function MultiplayerDialog({
     }
   }
 
-  const handleJoin = async () => {
-    if (code.trim().length !== 4) return
+  const handleJoin = async (joinCode: string) => {
+    const normalized = joinCode.trim().toUpperCase()
+    if (normalized.length !== 4) return
     setConnecting(true)
     setLocalError(null)
     try {
-      const client = await joinRoom(code.trim().toUpperCase(), syncMode)
-      onConnect(client, "guest", code.trim().toUpperCase(), syncMode)
+      // syncMode приходит от сервера (его задаёт хост комнаты), а не выбирается гостем
+      const client = await joinRoom(normalized)
+      onConnect(client, "guest", normalized, client.syncMode, client.teamIndex)
     } catch (e) {
       const msg = e instanceof Error ? e.message : t(lang, "mpErrorTitle")
       setLocalError(msg)
@@ -98,6 +110,25 @@ export function MultiplayerDialog({
       setConnecting(false)
     }
   }
+
+  /* ─── Список открытых лобби (третий вид) ─── */
+  const refreshLobbies = useCallback(async () => {
+    try {
+      const list = await listLobbiesOnce()
+      setLobbies(list)
+    } catch (e) {
+      console.warn("[multiplayer] не удалось получить список лобби:", e)
+      setLobbies([])
+    }
+  }, [])
+
+  useEffect(() => {
+    if (open && mode === "lobbies" && status !== "connected") {
+      void refreshLobbies()
+      const id = setInterval(() => void refreshLobbies(), 5000)
+      return () => clearInterval(id)
+    }
+  }, [open, mode, status, refreshLobbies])
 
   const handleCopyCode = async () => {
     if (!createdCode) return
@@ -253,6 +284,15 @@ export function MultiplayerDialog({
               <Users className="mr-2 h-5 w-5" />
               {t(lang, "mpJoinByCode")}
             </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="w-full font-bold"
+              onClick={() => setMode("lobbies")}
+            >
+              <Globe className="mr-2 h-5 w-5" />
+              {t(lang, "mpLobbiesTitle")}
+            </Button>
             <p className="text-xs text-muted-foreground">
               {t(lang, "mpInfo")}
             </p>
@@ -369,11 +409,84 @@ export function MultiplayerDialog({
             <Button
               size="lg"
               className="w-full font-bold"
-              onClick={handleJoin}
+              onClick={() => void handleJoin(code)}
               disabled={connecting || code.trim().length !== 4}
             >
               {connecting ? t(lang, "mpJoining") : t(lang, "mpJoin")}
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full"
+              onClick={() => setMode("choose")}
+            >
+              {t(lang, "mpBack")}
+            </Button>
+          </div>
+        )}
+
+        {status !== "connected" && mode === "lobbies" && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">{t(lang, "mpLobbiesDescription")}</p>
+              <Button variant="ghost" size="icon" onClick={() => void refreshLobbies()} aria-label={t(lang, "mpLobbiesRefresh")}>
+                <RefreshCw className={`h-4 w-4 ${lobbies === null ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
+
+            {lobbies === null && (
+              <div className="rounded-2xl bg-muted/50 p-6 text-center text-sm text-muted-foreground">
+                {t(lang, "mpLobbiesLoading")}
+              </div>
+            )}
+
+            {lobbies !== null && lobbies.length === 0 && (
+              <div className="rounded-2xl bg-muted/50 p-6 text-center text-sm text-muted-foreground">
+                {t(lang, "mpLobbiesEmpty")}
+              </div>
+            )}
+
+            {lobbies !== null && lobbies.length > 0 && (
+              <div className="space-y-2">
+                {lobbies.map((lobby) => (
+                  <div
+                    key={lobby.code}
+                    className="flex items-center gap-3 rounded-2xl border bg-card p-3"
+                  >
+                    <div className="grid h-12 w-14 shrink-0 place-items-center rounded-xl bg-linear-to-br from-amber-400 to-orange-500 font-mono text-lg font-black text-white">
+                      {lobby.code}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 text-sm font-bold">
+                        <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                        {lobby.members}/{lobby.max}
+                        <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                          lobby.status === "lobby"
+                            ? "bg-emerald-500/15 text-emerald-600"
+                            : "bg-sky-500/15 text-sky-600"
+                        }`}>
+                          {lobby.status === "lobby" ? t(lang, "mpLobbyOpen") : t(lang, "mpLobbyPlaying")}
+                        </span>
+                      </div>
+                      {lobby.teams.length > 0 && (
+                        <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {lobby.teams.map((tm) => `${tm.emoji} ${tm.name}`).join(" · ")}
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      className="shrink-0 font-bold"
+                      disabled={connecting || lobby.members >= lobby.max}
+                      onClick={() => void handleJoin(lobby.code)}
+                    >
+                      {t(lang, "mpLobbyJoin")}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <Button
               variant="ghost"
               size="sm"
