@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Radio, Wifi, Copy, Check, Users, Crown, RefreshCw, Settings2, PlugZap, Globe } from "lucide-react"
 import {
   Dialog,
@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label"
 import {
   createRoom,
   joinRoom,
-  listLobbiesOnce,
+  watchLobbies,
   getManualMpUrl,
   setManualMpUrl,
   getPlayerName,
@@ -76,11 +76,6 @@ export function MultiplayerDialog({
     setMpUrl(getManualMpUrl())
   }, [open])
 
-  // Подтягиваем сохранённый адрес сервера (только на клиенте)
-  useEffect(() => {
-    setMpUrl(getManualMpUrl())
-  }, [open])
-
   const handleSaveMpUrl = () => {
     setManualMpUrl(mpUrl)
     setMpUrlSaved(true)
@@ -124,23 +119,43 @@ export function MultiplayerDialog({
   }
 
   /* ─── Список открытых лобби (третий вид) ─── */
-  const refreshLobbies = useCallback(async () => {
-    try {
-      const list = await listLobbiesOnce()
-      setLobbies(list)
-    } catch (e) {
-      console.warn("[multiplayer] не удалось получить список лобби:", e)
-      setLobbies([])
-    }
+  // Живая подписка: сервер сам присылает lobbies-changed при изменениях,
+  // поэтому периодический поллинг не нужен — список обновляется мгновенно.
+  const lobbyWatcherRef = useRef<{ stop: () => void; refresh: () => void } | null>(null)
+
+  const stopLobbyWatch = useCallback(() => {
+    lobbyWatcherRef.current?.stop()
+    lobbyWatcherRef.current = null
   }, [])
 
   useEffect(() => {
     if (open && mode === "lobbies" && status !== "connected") {
-      void refreshLobbies()
-      const id = setInterval(() => void refreshLobbies(), 5000)
-      return () => clearInterval(id)
+      setLobbies(null)
+      let cancelled = false
+      watchLobbies(
+        (list) => {
+          if (!cancelled) setLobbies(list)
+        },
+        () => {
+          if (!cancelled) setLobbies([])
+        },
+      )
+        .then((w) => {
+          // Диалог могли закрыть/переключить, пока шло подключение
+          if (cancelled) w.stop()
+          else lobbyWatcherRef.current = w
+        })
+        .catch(() => {
+          if (!cancelled) setLobbies([])
+        })
+      return () => {
+        cancelled = true
+        stopLobbyWatch()
+      }
     }
-  }, [open, mode, status, refreshLobbies])
+    // При выходе из вида лобби — всегда отписываемся
+    stopLobbyWatch()
+  }, [open, mode, status, stopLobbyWatch])
 
   const handleCopyCode = async () => {
     if (!createdCode) return
@@ -241,12 +256,6 @@ export function MultiplayerDialog({
               <PlugZap className="mr-2 h-4 w-4" />
               {t(lang, "mpDisconnect")}
             </Button>
-          </div>
-        )}
-
-        {status === "error" && errorMessage && (
-          <div className="rounded-2xl bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
-            {errorMessage}
           </div>
         )}
 
@@ -491,7 +500,7 @@ export function MultiplayerDialog({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">{t(lang, "mpLobbiesDescription")}</p>
-              <Button variant="ghost" size="icon" onClick={() => void refreshLobbies()} aria-label={t(lang, "mpLobbiesRefresh")}>
+              <Button variant="ghost" size="icon" onClick={() => lobbyWatcherRef.current?.refresh()} aria-label={t(lang, "mpLobbiesRefresh")}>
                 <RefreshCw className={`h-4 w-4 ${lobbies === null ? "animate-spin" : ""}`} />
               </Button>
             </div>

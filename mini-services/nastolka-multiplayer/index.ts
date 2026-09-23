@@ -11,6 +11,12 @@
 //     сервер ретранслирует состояние всем остальным участникам комнаты
 //   - Каждый клиент играет только раунды своей команды, чужие — смотрит
 //
+// Устойчивость к обрывам:
+//   - Участник, потерявший связь, не выбывает мгновенно: сервер держит его
+//     «офлайн» в течение грейс-периода (MP_GRACE_MS) и при переподключении того
+//     же deviceId возвращает прежнюю команду. Если устройство не вернулось —
+//     рассылает peer-left, и клиенты засчитывают выбывание команды.
+//
 // Состояние игры не хранится на сервере — каждый клиент держит своё и отправляет
 // обновления. Сервер — ретранслятор + реестр комнат/команд/лобби.
 
@@ -27,6 +33,8 @@ const WS_PATH = process.env.MP_PATH || '/mp'
 const LOG_FILE = resolve(process.env.MP_LOG_FILE || 'logs/multiplayer.log')
 const TRUST_PROXY = process.env.MP_TRUST_PROXY !== 'false'
 const MAX_MEMBERS = 4
+// Сколько ждать возвращения устройства, прежде чем засчитать его выбывшим.
+const GRACE_MS = Number(process.env.MP_GRACE_MS) > 0 ? Number(process.env.MP_GRACE_MS) : 20000
 
 mkdirSync(dirname(LOG_FILE), { recursive: true })
 
@@ -60,6 +68,21 @@ interface MemberProfile {
   browser: string
   model: string
   lang: string
+  /** Стабильный ID устройства — по нему узнаём вернувшееся устройство */
+  deviceId: string
+}
+
+/** Участник комнаты: устройство (deviceId) = одна команда */
+interface Member {
+  deviceId: string
+  /** Текущий socket.id (меняется при переподключении) */
+  socketId: string
+  profile: MemberProfile
+  teamIndex: number
+  /** Есть ли живое соединение прямо сейчас */
+  connected: boolean
+  /** Таймер грейс-периода после обрыва (null — соединён) */
+  disconnectTimer: ReturnType<typeof setTimeout> | null
 }
 
 /** Информация о комнате для реестра и списка лобби */
@@ -67,10 +90,8 @@ interface RoomInfo {
   code: string
   /** Режим синхронизации задаёт хост при создании комнаты */
   syncMode: 'host' | 'sync'
-  /** socketId → teamIndex (какой командой играет участник) */
-  teamAssignments: Map<string, number>
-  /** socketId → профиль участника (имя + устройство) */
-  memberInfo: Map<string, MemberProfile>
+  /** deviceId → участник (какое устройство за какую команду играет) */
+  members: Map<string, Member>
   /** Инфа о командах от хоста (имена/эмодзи) — для списка лобби */
   teamInfo: { name: string; emoji: string }[]
   /** Статус комнаты для списка лобби: лобби (setup) или в игре */
@@ -80,21 +101,22 @@ interface RoomInfo {
 
 // roomCode → RoomInfo
 const rooms = new Map<string, RoomInfo>()
-// socketId → roomCode (для быстрого выхода)
-const socketToRoom = new Map<string, string>()
+// socketId → { roomCode, deviceId } (для быстрого поиска участника)
+const socketIndex = new Map<string, { roomCode: string; deviceId: string }>()
 
 /** Участник комнаты: профиль + команда (публичный вид без socketId) */
 const roomMembers = (room: RoomInfo) =>
-  Array.from(room.teamAssignments.entries())
-    .sort((a, b) => a[1] - b[1])
-    .map(([id, teamIndex]) => ({
-      id,
-      teamIndex,
-      profile: room.memberInfo.get(id) || { name: 'Игрок', deviceType: 'unknown', os: 'unknown', browser: 'unknown', model: 'unknown', lang: 'ru' },
+  Array.from(room.members.values())
+    .sort((a, b) => a.teamIndex - b.teamIndex)
+    .map((m) => ({
+      id: m.deviceId,
+      teamIndex: m.teamIndex,
+      connected: m.connected,
+      profile: m.profile,
     }))
 
 /** Нормализовать профиль от клиента (защита от мусора) */
-const normalizeProfile = (profile: unknown): MemberProfile => {
+const normalizeProfile = (profile: unknown, fallbackDeviceId: string): MemberProfile => {
   const p = (profile || {}) as Partial<MemberProfile>
   const str = (v: unknown, fallback: string, max = 40) =>
     typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : fallback
@@ -105,20 +127,21 @@ const normalizeProfile = (profile: unknown): MemberProfile => {
     browser: str(p.browser, 'unknown', 20),
     model: str(p.model, 'unknown', 30),
     lang: str(p.lang, 'ru', 5),
+    deviceId: str(p.deviceId, fallbackDeviceId, 64),
   }
 }
 
 /** Публичное описание комнаты для списка лобби (без socketId) */
 const lobbyView = (room: RoomInfo) => ({
   code: room.code,
-  members: room.teamAssignments.size,
+  members: room.members.size,
   max: MAX_MEMBERS,
   syncMode: room.syncMode,
   teams: room.teamInfo,
   status: room.status,
   createdAt: room.createdAt,
   /** Участники комнаты с профилями устройств (кто сидит в лобби) */
-  players: roomMembers(room).map(({ teamIndex, profile }) => ({ teamIndex, profile })),
+  players: roomMembers(room).map(({ teamIndex, profile, connected }) => ({ teamIndex, profile, connected })),
 })
 
 /** Список всех комнат для списка лобби */
@@ -158,7 +181,7 @@ const generateRoomCode = () => {
 
 /** Назначить следующий свободный teamIndex (по порядку входа) */
 const nextTeamIndex = (room: RoomInfo) => {
-  const used = new Set(room.teamAssignments.values())
+  const used = new Set(Array.from(room.members.values()).map((m) => m.teamIndex))
   for (let i = 0; i < MAX_MEMBERS; i++) {
     if (!used.has(i)) return i
   }
@@ -168,43 +191,88 @@ const nextTeamIndex = (room: RoomInfo) => {
 /**
  * Перемешать назначения команд при полном лобби (4/4) —
  * кто какой командой играет, определяется случайно.
- * Возвращает новые назначения socketId → teamIndex.
+ * Возвращает новые назначения deviceId → teamIndex.
  */
 const shuffleAssignments = (room: RoomInfo) => {
-  const ids = Array.from(room.teamAssignments.keys())
-  const indexes = ids.map((id) => room.teamAssignments.get(id)!)
+  const members = Array.from(room.members.values())
+  const indexes = members.map((m) => m.teamIndex)
   // Тасование Фишера—Йетса
   for (let i = indexes.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
     ;[indexes[i], indexes[j]] = [indexes[j], indexes[i]]
   }
-  const assignments = ids.map((id, i) => ({ id, teamIndex: indexes[i] }))
-  for (const { id, teamIndex } of assignments) room.teamAssignments.set(id, teamIndex)
+  const assignments = members.map((m, i) => {
+    m.teamIndex = indexes[i]
+    return { id: m.deviceId, teamIndex: m.teamIndex }
+  })
   return assignments
 }
 
-const leaveRoom = (socketId: string, notify = true) => {
-  const roomCode = socketToRoom.get(socketId)
-  if (!roomCode) return
+/**
+ * Полностью удалить участника из комнаты и уведомить остальных.
+ * Вызывается по истечении грейс-периода или при явном выходе.
+ */
+const removeMember = (roomCode: string, deviceId: string, notify = true) => {
   const room = rooms.get(roomCode)
-  io.sockets.sockets.get(socketId)?.leave(roomCode)
-  if (room) {
-    // Какой командой играл выходящий — чтобы клиенты могли завершить игру
-    const teamIndex = room.teamAssignments.get(socketId) ?? -1
-    room.teamAssignments.delete(socketId)
-    room.memberInfo.delete(socketId)
-    if (room.teamAssignments.size === 0) {
-      rooms.delete(roomCode)
-      console.log(`[room ${roomCode}] emptied, removed`)
-      broadcastLobbiesChanged()
-    } else if (notify) {
-      io.to(roomCode).emit('peer-left', { id: socketId, members: room.teamAssignments.size, teamIndex })
-      io.to(roomCode).emit('members-list', { members: roomMembers(room) })
-      console.log(`[room ${roomCode}] ${socketId} left (team ${teamIndex}, now ${room.teamAssignments.size})`)
-      broadcastLobbiesChanged()
-    }
+  if (!room) return
+  const member = room.members.get(deviceId)
+  if (!member) return
+  if (member.disconnectTimer) {
+    clearTimeout(member.disconnectTimer)
+    member.disconnectTimer = null
   }
-  socketToRoom.delete(socketId)
+  room.members.delete(deviceId)
+  if (room.members.size === 0) {
+    rooms.delete(roomCode)
+    console.log(`[room ${roomCode}] emptied, removed`)
+    broadcastLobbiesChanged()
+    return
+  }
+  if (notify) {
+    io.to(roomCode).emit('peer-left', {
+      id: deviceId,
+      members: room.members.size,
+      teamIndex: member.teamIndex,
+    })
+    io.to(roomCode).emit('members-list', { members: roomMembers(room) })
+    console.log(`[room ${roomCode}] ${deviceId} left (team ${member.teamIndex}, now ${room.members.size})`)
+  }
+  broadcastLobbiesChanged()
+}
+
+/**
+ * Разорвать связь сокета с комнатой. Если `immediate` — участник удаляется
+ * сразу (явный выход по кнопке), иначе запускается грейс-период на возврат.
+ */
+const detachSocket = (socketId: string, immediate = false) => {
+  const ref = socketIndex.get(socketId)
+  if (!ref) return null
+  const { roomCode, deviceId } = ref
+  socketIndex.delete(socketId)
+  io.sockets.sockets.get(socketId)?.leave(roomCode)
+  const room = rooms.get(roomCode)
+  const member = room?.members.get(deviceId)
+  if (!room || !member) return { roomCode, deviceId, teamIndex: -1 }
+
+  // Сокет мог быть уже заменён новым соединением того же устройства —
+  // тогда просто игнорируем «устаревший» disconnect.
+  if (member.socketId !== socketId) return { roomCode, deviceId, teamIndex: member.teamIndex }
+
+  if (immediate) {
+    removeMember(roomCode, deviceId, true)
+    return { roomCode, deviceId, teamIndex: member.teamIndex }
+  }
+
+  // Грейс-период: устройство ещё может вернуться с прежней командой.
+  member.connected = false
+  member.socketId = ''
+  if (member.disconnectTimer) clearTimeout(member.disconnectTimer)
+  member.disconnectTimer = setTimeout(() => {
+    removeMember(roomCode, deviceId, true)
+  }, GRACE_MS)
+  io.to(roomCode).emit('members-list', { members: roomMembers(room) })
+  console.log(`[room ${roomCode}] ${deviceId} offline (grace ${GRACE_MS}ms)`)
+  return { roomCode, deviceId, teamIndex: member.teamIndex }
 }
 
 io.on('connection', (socket) => {

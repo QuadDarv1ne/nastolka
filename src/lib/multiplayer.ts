@@ -25,10 +25,18 @@ export interface MemberProfile {
   model: string
   /** Язык интерфейса браузера */
   lang: string
+  /**
+   * Стабильный ID устройства (хранится в localStorage). Сервер по нему
+   * узнаёт устройство при переподключении и возвращает ему прежнюю команду.
+   */
+  deviceId: string
 }
 
 /** Ключ localStorage с именем игрока */
 const MP_NAME_STORAGE_KEY = "nastolka-mp-name-v1"
+
+/** Ключ localStorage со стабильным ID устройства */
+const DEVICE_ID_STORAGE_KEY = "nastolka-device-id-v1"
 
 /** Прочитать сохранённое имя игрока */
 export function getPlayerName(): string {
@@ -42,8 +50,22 @@ export function setPlayerName(name: string) {
   writeItem(MP_NAME_STORAGE_KEY, name.trim())
 }
 
+/**
+ * Стабильный ID устройства. Генерируется один раз и живёт в localStorage,
+ * поэтому переживает перезагрузку страницы и переподключение к комнате.
+ */
+export function getDeviceId(): string {
+  if (typeof window === "undefined") return ""
+  let id = (readItem(DEVICE_ID_STORAGE_KEY) || "").trim()
+  if (!id) {
+    id = `dev-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+    writeItem(DEVICE_ID_STORAGE_KEY, id)
+  }
+  return id
+}
+
 /** Определить характеристики устройства из navigator/userAgent */
-export function detectDeviceInfo(): Omit<MemberProfile, "name"> {
+export function detectDeviceInfo(): Omit<MemberProfile, "name" | "deviceId"> {
   if (typeof window === "undefined") {
     return { deviceType: "unknown", os: "unknown", browser: "unknown", model: "unknown", lang: "ru" }
   }
@@ -115,6 +137,7 @@ export function buildMemberProfile(): MemberProfile {
   const info = detectDeviceInfo()
   return {
     name: name || `${info.model} · ${info.os}`,
+    deviceId: getDeviceId(),
     ...info,
   }
 }
@@ -302,6 +325,41 @@ export async function listLobbiesOnce(timeoutMs = 8000): Promise<LobbyInfo[]> {
     })
     socket.emit('list-lobbies', {})
   })
+}
+
+/**
+ * Живая подписка на список открытых лобби.
+ *
+ * Подключается, сразу запрашивает список (list-lobbies → lobbies-list) и далее
+ * слушает серверные рассылки lobbies-changed, которые приходят при создании/
+ * закрытии комнаты, входе/выходе игрока или смене статуса. Это заменяет
+ * периодический поллинг и обновляет список мгновенно.
+ *
+ * Возвращает объект с stop() для отписки и закрытия сокета.
+ */
+export async function watchLobbies(
+  onUpdate: (lobbies: LobbyInfo[]) => void,
+  onError?: (err: Error) => void,
+): Promise<{ stop: () => void; refresh: () => void }> {
+  const socket = await connect()
+  const handle = (payload: { lobbies?: LobbyInfo[] }) => onUpdate(payload?.lobbies ?? [])
+  socket.on('lobbies-list', handle)
+  socket.on('lobbies-changed', handle)
+  socket.on('connect_error', (err: Error) => onError?.(err))
+  const refresh = () => socket.emit('list-lobbies', {})
+  refresh()
+  return {
+    stop: () => {
+      try {
+        socket.off('lobbies-list', handle)
+        socket.off('lobbies-changed', handle)
+        socket.disconnect()
+      } catch {
+        // ignore
+      }
+    },
+    refresh,
+  }
 }
 
 /** Кандидат на подключение: человекочитаемая подпись + url + опции сокета */
