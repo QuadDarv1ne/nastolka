@@ -332,6 +332,13 @@ export default function AdminPage() {
     await loadStats(trimmedKey, "key");
   };
 
+  const refreshStats = () => {
+    const storedToken = readStoredToken();
+    if (storedToken) {
+      void loadStats(storedToken, "token");
+    }
+  };
+
   const logout = () => {
     if (typeof window !== "undefined") {
       sessionStorage.removeItem(STORAGE_KEY);
@@ -412,6 +419,14 @@ export default function AdminPage() {
               </div>
               <button
                 type="button"
+                className={`rounded-xl border px-4 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${palette.secondaryButton}`}
+                onClick={refreshStats}
+                disabled={loading}
+              >
+                {loading ? "Обновление..." : "Обновить"}
+              </button>
+              <button
+                type="button"
                 className={`rounded-xl border px-4 py-2 text-sm transition ${palette.secondaryButton}`}
                 onClick={logout}
               >
@@ -420,7 +435,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <section className="grid gap-4 md:grid-cols-4">
+          <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             {[
               { label: "Всего запросов", value: stats.total, accent: true },
               { label: "Уникальных IP", value: stats.uniqueIps },
