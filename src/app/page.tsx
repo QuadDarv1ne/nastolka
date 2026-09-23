@@ -102,6 +102,7 @@ import {
   hapticTick,
 } from "@/lib/sounds"
 import { recordGameComplete } from "@/lib/achievements"
+import { readItem, readJson, removeItem, writeJson } from "@/lib/storage"
 import { useTheme } from "@/hooks/use-theme"
 import { useLang } from "@/hooks/use-lang"
 import { I18nContext, useI18n } from "@/hooks/i18n-context"
@@ -1336,74 +1337,64 @@ export default function Home() {
   // ─── Восстановление состояния из localStorage при загрузке ───
   useEffect(() => {
     // Применяем сохранённые настройки звука и вибрации (из SettingsDialog)
-    try {
-      const s = localStorage.getItem("nastolka-sound-enabled")
-      const h = localStorage.getItem("nastolka-haptic-enabled")
-      if (s !== null) setMuted(s !== "true")
-      if (h !== null) setHapticsEnabled(h === "true")
-    } catch {
-      // ignore
-    }
-    try {
-      // Сначала пробуем восстановить активную игру
-      const saved = localStorage.getItem(STATE_STORAGE_KEY)
-      if (saved) {
-        const parsed = JSON.parse(saved) as Partial<State>
-        const parsedPhase = parsed.phase as Phase | undefined
-        // Восстанавливаем только из «безопасных» фаз — активные фазы перед
-        // сохранением уже конвертируются в "ready", но если в localStorage
-        // оказалась активная фаза (старая версия/чужая запись), откатываемся в "ready".
-        const isRestorable = parsedPhase && RESTORABLE_PHASES.includes(parsedPhase)
-        const isActive = parsedPhase && ACTIVE_PHASES.includes(parsedPhase)
-        if (isRestorable || isActive) {
-          if (isActive) {
-            parsed.phase = "ready"
-            parsed.currentMethod = null
-            parsed.currentWord = null
-            parsed.wordRevealed = false
-            parsed.secondsLeft = parsed.roundSeconds ?? initialState.roundSeconds
-            parsed.lastRoundResult = null
-            parsed.lastRoundPoints = 0
-            parsed.countdownSeconds = 0
-          }
-          parsed.multiplier = parsed.multiplier ?? 1
-          parsed.lastRoundBasePoints = parsed.lastRoundBasePoints ?? 0
-          parsed.lastRoundMultiplier = parsed.lastRoundMultiplier ?? 1
-          // Миграция: добавляем chips командам, если их нет (старые сейвы)
-          if (parsed.teams) {
-            parsed.teams = parsed.teams.map((t) => ({
-              ...t,
-              chips: t.chips ?? initialChips(),
-            }))
-          }
-          dispatch({ type: "HYDRATE", state: { ...initialState, ...parsed } as State })
+    const s = readItem("nastolka-sound-enabled")
+    const h = readItem("nastolka-haptic-enabled")
+    if (s !== null) setMuted(s !== "true")
+    if (h !== null) setHapticsEnabled(h === "true")
+    // Сначала пробуем восстановить активную игру
+    const parsed = readJson<Partial<State>>(STATE_STORAGE_KEY)
+    if (parsed) {
+      const parsedPhase = parsed.phase as Phase | undefined
+      // Восстанавливаем только из «безопасных» фаз — активные фазы перед
+      // сохранением уже конвертируются в "ready", но если в localStorage
+      // оказалась активная фаза (старая версия/чужая запись), откатываемся в "ready".
+      const isRestorable = parsedPhase && RESTORABLE_PHASES.includes(parsedPhase)
+      const isActive = parsedPhase && ACTIVE_PHASES.includes(parsedPhase)
+      if (isRestorable || isActive) {
+        if (isActive) {
+          parsed.phase = "ready"
+          parsed.currentMethod = null
+          parsed.currentWord = null
+          parsed.wordRevealed = false
+          parsed.secondsLeft = parsed.roundSeconds ?? initialState.roundSeconds
+          parsed.lastRoundResult = null
+          parsed.lastRoundPoints = 0
+          parsed.countdownSeconds = 0
         }
-      } else {
-        // Если активной игры нет — восстанавливаем настройки setup
-        const settings = localStorage.getItem(SETTINGS_STORAGE_KEY)
-        if (settings) {
-          const s = JSON.parse(settings) as Partial<State>
-          const restoredTeams = (s.teams && s.teams.length >= 2 ? s.teams : initialState.teams).map((t) => ({
+        parsed.multiplier = parsed.multiplier ?? 1
+        parsed.lastRoundBasePoints = parsed.lastRoundBasePoints ?? 0
+        parsed.lastRoundMultiplier = parsed.lastRoundMultiplier ?? 1
+        // Миграция: добавляем chips командам, если их нет (старые сейвы)
+        if (parsed.teams) {
+          parsed.teams = parsed.teams.map((t) => ({
             ...t,
             chips: t.chips ?? initialChips(),
-            score: 0, // на setup всегда обнуляем
           }))
-          dispatch({
-            type: "HYDRATE",
-            state: {
-              ...initialState,
-              teams: restoredTeams,
-              targetScore: s.targetScore ?? initialState.targetScore,
-              roundSeconds: s.roundSeconds ?? initialState.roundSeconds,
-              enabledCategories: s.enabledCategories ?? [],
-              enabledDifficulties: s.enabledDifficulties ?? [],
-              customWords: s.customWords ?? [],
-            },
-          })
         }
+        dispatch({ type: "HYDRATE", state: { ...initialState, ...parsed } as State })
       }
-    } catch {
-      // ignore parse errors
+    } else {
+      // Если активной игры нет — восстанавливаем настройки setup
+      const s = readJson<Partial<State>>(SETTINGS_STORAGE_KEY)
+      if (s) {
+        const restoredTeams = (s.teams && s.teams.length >= 2 ? s.teams : initialState.teams).map((t) => ({
+          ...t,
+          chips: t.chips ?? initialChips(),
+          score: 0, // на setup всегда обнуляем
+        }))
+        dispatch({
+          type: "HYDRATE",
+          state: {
+            ...initialState,
+            teams: restoredTeams,
+            targetScore: s.targetScore ?? initialState.targetScore,
+            roundSeconds: s.roundSeconds ?? initialState.roundSeconds,
+            enabledCategories: s.enabledCategories ?? [],
+            enabledDifficulties: s.enabledDifficulties ?? [],
+            customWords: s.customWords ?? [],
+          },
+        })
+      }
     }
     setHydrated(true)
   }, [])
@@ -1518,12 +1509,42 @@ export default function Home() {
     mpRoleRef.current === "guest"
 
   // ─── Сохранение состояния в localStorage при изменениях ───
+  // Debounce 400 мс: таймер тикает каждую секунду, и без задержки мы
+  // писали бы полный JSON на каждый тик (лишние I/O и тряска квоты).
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     if (!hydrated) return
-    try {
-      // Не сохраняем промежуточные фазы (rolling / playing / task / method), чтобы при перезагрузке вернуться к началу хода
-      if (state.phase === "setup") {
-        // Сохраняем настройки setup, чтобы при следующем запуске они восстановились
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null
+      try {
+        // Не сохраняем промежуточные фазы (rolling / playing / task / method), чтобы при перезагрузке вернуться к началу хода
+        if (state.phase === "setup") {
+          // Сохраняем настройки setup, чтобы при следующем запуске они восстановились
+          const settings = {
+            teams: state.teams,
+            targetScore: state.targetScore,
+            roundSeconds: state.roundSeconds,
+            enabledCategories: state.enabledCategories,
+            enabledDifficulties: state.enabledDifficulties,
+            customWords: state.customWords,
+          }
+          writeJson(SETTINGS_STORAGE_KEY, settings)
+          removeItem(STATE_STORAGE_KEY)
+          return
+        }
+        const snapshot: State = { ...state }
+        if (snapshot.phase === "rolling" || snapshot.phase === "method" || snapshot.phase === "task" || snapshot.phase === "countdown" || snapshot.phase === "playing") {
+          snapshot.phase = "ready"
+          snapshot.currentMethod = null
+          snapshot.currentWord = null
+          snapshot.wordRevealed = false
+          snapshot.secondsLeft = snapshot.roundSeconds
+          snapshot.lastRoundResult = null
+          snapshot.lastRoundPoints = 0
+        }
+        writeJson(STATE_STORAGE_KEY, snapshot)
+        // Также сохраняем настройки — чтобы они пережили game_over → новая игра
         const settings = {
           teams: state.teams,
           targetScore: state.targetScore,
@@ -1532,33 +1553,16 @@ export default function Home() {
           enabledDifficulties: state.enabledDifficulties,
           customWords: state.customWords,
         }
-        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings))
-        localStorage.removeItem(STATE_STORAGE_KEY)
-        return
+        writeJson(SETTINGS_STORAGE_KEY, settings)
+      } catch {
+        // ignore
       }
-      const snapshot: State = { ...state }
-      if (snapshot.phase === "rolling" || snapshot.phase === "method" || snapshot.phase === "task" || snapshot.phase === "countdown" || snapshot.phase === "playing") {
-        snapshot.phase = "ready"
-        snapshot.currentMethod = null
-        snapshot.currentWord = null
-        snapshot.wordRevealed = false
-        snapshot.secondsLeft = snapshot.roundSeconds
-        snapshot.lastRoundResult = null
-        snapshot.lastRoundPoints = 0
+    }, 400)
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current)
+        saveTimerRef.current = null
       }
-      localStorage.setItem(STATE_STORAGE_KEY, JSON.stringify(snapshot))
-      // Также сохраняем настройки — чтобы они пережили game_over → новая игра
-      const settings = {
-        teams: state.teams,
-        targetScore: state.targetScore,
-        roundSeconds: state.roundSeconds,
-        enabledCategories: state.enabledCategories,
-        enabledDifficulties: state.enabledDifficulties,
-        customWords: state.customWords,
-      }
-      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings))
-    } catch {
-      // ignore quota errors
     }
   }, [state, hydrated])
 

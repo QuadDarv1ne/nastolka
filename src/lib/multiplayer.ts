@@ -8,6 +8,7 @@
 // подключается потом как upgrade, если провайдер поддерживает.
 
 import type { State } from "@/lib/types"
+import { readItem, removeItem, writeItem } from "@/lib/storage"
 
 export interface MultiplayerClient {
   disconnect: () => void
@@ -119,23 +120,15 @@ const MP_URL_STORAGE_KEY = "nastolka-mp-url-v1"
 /** Ручной адрес сервера мультиплеера, если пользователь задал его в настройках */
 export function getManualMpUrl(): string {
   if (typeof window === "undefined") return ""
-  try {
-    return (localStorage.getItem(MP_URL_STORAGE_KEY) || "").trim()
-  } catch {
-    return ""
-  }
+  return (readItem(MP_URL_STORAGE_KEY) || "").trim()
 }
 
 /** Сохранить/очистить ручной адрес сервера мультиплеера */
 export function setManualMpUrl(url: string) {
   if (typeof window === "undefined") return
-  try {
-    const v = url.trim()
-    if (v) localStorage.setItem(MP_URL_STORAGE_KEY, v)
-    else localStorage.removeItem(MP_URL_STORAGE_KEY)
-  } catch {
-    // ignore
-  }
+  const v = url.trim()
+  if (v) writeItem(MP_URL_STORAGE_KEY, v)
+  else removeItem(MP_URL_STORAGE_KEY)
 }
 
 /** Путь socket.io — должен совпадать с MP_PATH в mini-services/nastolka-multiplayer */
@@ -249,22 +242,39 @@ function tryConnect(
 }
 
 function makeWrapper(socket: import('socket.io-client').Socket): MultiplayerClient {
+  // Локальные подписки на синтетические события (server-disconnect, reconnect-error).
+  // События от сервера доставляет сам socket.io через socket.on.
+  const localHandlers = new Map<keyof MultiplayerEvents, Set<(payload: never) => void>>()
+  const emitLocal = <K extends keyof MultiplayerEvents>(event: K, payload: MultiplayerEvents[K]) => {
+    localHandlers.get(event)?.forEach((cb) => (cb as (p: MultiplayerEvents[K]) => void)(payload))
+  }
   const wrapper: MultiplayerClient = {
     disconnect: () => socket.disconnect(),
     sendState: (state) => socket.emit('state-update', { state }),
     requestState: () => socket.emit('request-state', {}),
     sendStateTo: (to, state) => socket.emit('send-state-to', { to, state }),
     sendMeta: (meta) => socket.emit('meta-update', { meta }),
-    on: (event, cb) => socket.on(event, cb as never),
-    off: (event, cb) => socket.off(event, cb as never),
+    on: (event, cb) => {
+      socket.on(event, cb as never)
+      let set = localHandlers.get(event)
+      if (!set) {
+        set = new Set()
+        localHandlers.set(event, set)
+      }
+      set.add(cb as (payload: never) => void)
+    },
+    off: (event, cb) => {
+      socket.off(event, cb as never)
+      localHandlers.get(event)?.delete(cb as (payload: never) => void)
+    },
   }
   // Пробрасываем обрывы связи наружу: socket.io с reconnection:false
   // после разрыва уже не подключается сам — UI должен это показать.
   socket.on('disconnect', (reason: string) => {
-    wrapper.on('server-disconnect', { reason: reason || 'transport closed' })
+    emitLocal('server-disconnect', { reason: reason || 'transport closed' })
   })
   socket.io.on('reconnect_error', (err: { message?: string }) => {
-    wrapper.on('reconnect-error', { message: err?.message || 'reconnect failed' })
+    emitLocal('reconnect-error', { message: err?.message || 'reconnect failed' })
   })
   return wrapper
 }
