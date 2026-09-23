@@ -97,6 +97,10 @@ export type Action =
   | { type: "SWAP_WORD"; word: WordEntry }
   | { type: "USE_CHIP"; chip: "x2" | "plus10" | "plus5" }
   | { type: "STEAL_TURN" }
+  /** Повтор раунда: команда соперников применяет фишку — очки за раунд не
+   *  засчитываются, раунд начинается заново с тем же словом/методом, но с
+   *  меньшим временем (-10 сек, минимум REPLAY_MIN_SECONDS). */
+  | { type: "REPLAY_ROUND"; byTeam: number }
   | { type: "PAUSE" }
   | { type: "RESUME" }
   | { type: "NEXT_TURN" }
