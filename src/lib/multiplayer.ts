@@ -9,6 +9,7 @@
 
 import type { State } from "@/lib/types"
 import { readItem, writeItem, removeItem } from "@/lib/storage"
+import { getNickname } from "@/lib/nickname"
 
 /** Профиль участника: имя игрока + характеристики устройства */
 export interface MemberProfile {
@@ -107,9 +108,10 @@ export function detectDeviceInfo(): Omit<MemberProfile, "name"> {
   return { deviceType, os, browser, model, lang }
 }
 
-/** Собрать полный профиль участника (имя + устройство) */
+/** Собрать полный профиль участника (глобальный никнейм + устройство) */
 export function buildMemberProfile(): MemberProfile {
-  const name = getPlayerName()
+  // Глобальный никнейм обязателен при заходе на сайт; если вдруг пуст — fallback
+  const name = getNickname() || getPlayerName()
   const info = detectDeviceInfo()
   return {
     name: name || `${info.model} · ${info.os}`,

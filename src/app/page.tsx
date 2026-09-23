@@ -799,6 +799,15 @@ function HeaderBar({
         {/* Кнопки могут переноситься на вторую строку на узких экранах —
             иконки компактнее на телефонах, крупнее на планшетах/ПК */}
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-1 sm:gap-1.5">
+          {/* Никнейм игрока — видно всем на этом устройстве */}
+          {nickname && (
+            <span
+              className="mr-1 hidden max-w-32 truncate rounded-full bg-linear-to-r from-pink-500/15 to-violet-500/15 px-2.5 py-1 text-xs font-bold text-foreground ring-1 ring-pink-500/20 sm:inline-block"
+              title={`${t(lang, "nickInHeader")}: ${nickname}`}
+            >
+              👤 {nickname}
+            </span>
+          )}
           <Button variant="ghost" size="sm" className="size-8 p-0 sm:size-10" onClick={onShowMultiplayer} aria-label="Multiplayer">
             <Radio className={`size-4 ${multiplayerStatus === "connected" ? "text-emerald-500" : multiplayerStatus === "error" ? "animate-pulse text-rose-500" : ""}`} />
           </Button>
@@ -2153,6 +2162,7 @@ export default function Home() {
           onShowSettings={() => setShowSettings(true)}
           hasHistory={hasHistory}
           multiplayerStatus={mpStatus}
+          nickname={nickname}
           lang={lang}
           onToggleLang={toggleLang}
         />

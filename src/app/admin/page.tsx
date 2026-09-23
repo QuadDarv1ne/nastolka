@@ -35,6 +35,41 @@ type VisitorStats = {
   }>;
 };
 
+/** Отчёт по устройствам (?view=devices) — полные профили device_visit */
+type DeviceStats = {
+  total: number;
+  uniqueIps: number;
+  uniqueNicknames: number;
+  byModel: Record<string, number>;
+  byOs: Record<string, number>;
+  byBrowser: Record<string, number>;
+  byDeviceType: Record<string, number>;
+  byScreen: Record<string, number>;
+  byTimezone: Record<string, number>;
+  byLanguage: Record<string, number>;
+  byTouch: Record<string, number>;
+  byNickname: Record<string, number>;
+  recent: Array<{
+    timestamp: string;
+    nickname: string | null;
+    ip: string | null;
+    deviceType: string;
+    model: string;
+    os: string;
+    osVersion: string;
+    browser: string;
+    browserVersion: string;
+    screenW: number;
+    screenH: number;
+    dpr: number;
+    timezone: string;
+    language: string;
+    touch: boolean;
+    cores: number | null;
+    memoryGb: number | null;
+  }>;
+};
+
 type ThemeMode = "dark" | "blue" | "light";
 
 const STORAGE_KEY = "nastolka-admin-token";
@@ -173,6 +208,9 @@ export default function AdminPage() {
   const [key, setKey] = useState("");
   const [generatedUrl, setGeneratedUrl] = useState("");
   const [stats, setStats] = useState<VisitorStats | null>(null);
+  const [deviceStats, setDeviceStats] = useState<DeviceStats | null>(null);
+  /** Активная вкладка: обзор запросов или устройства */
+  const [tab, setTab] = useState<"overview" | "devices">("overview");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [sessionExpiresAt, setSessionExpiresAt] = useState<number | null>(null);
@@ -204,16 +242,22 @@ export default function AdminPage() {
 
     try {
       const headers: Record<string, string> = mode === "token" ? { "x-admin-token": tokenOrKey } : { "x-admin-key": tokenOrKey };
-      const response = await fetch("/api/visitors", { headers });
-      const body = await response.text();
+      // Загружаем оба отчёта параллельно: обзор запросов + устройства
+      const [overviewRes, devicesRes] = await Promise.all([
+        fetch("/api/visitors", { headers }),
+        fetch("/api/visitors?view=devices&limit=100", { headers }),
+      ]);
+      const body = await overviewRes.text();
 
-      if (!response.ok) {
+      if (!overviewRes.ok) {
         throw new Error(body || "Unauthorized");
       }
 
       const json = JSON.parse(body) as VisitorStats;
+      const deviceJson = devicesRes.ok ? ((await devicesRes.json()) as DeviceStats) : null;
       const expiresAt = mode === "token" ? decodeAdminTokenExpiry(tokenOrKey) || Date.now() + ADMIN_SESSION_TTL_MS : Date.now() + ADMIN_SESSION_TTL_MS;
       setStats(json);
+      setDeviceStats(deviceJson);
       setSessionExpiresAt(expiresAt);
       setTimeLeftMs(Math.max(expiresAt - Date.now(), 0));
       setGeneratedUrl("");
@@ -226,6 +270,7 @@ export default function AdminPage() {
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить статистику");
       setStats(null);
+      setDeviceStats(null);
       setSessionExpiresAt(null);
       setTimeLeftMs(0);
     } finally {
@@ -443,6 +488,29 @@ export default function AdminPage() {
             </div>
           </div>
 
+          {/* Переключатель вкладок: Обзор запросов / Устройства */}
+          <div className="flex gap-2">
+            {(
+              [
+                { id: "overview", label: "Обзор запросов" },
+                { id: "devices", label: "Устройства" },
+              ] as const
+            ).map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setTab(item.id)}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                  tab === item.id ? palette.accentButton : palette.secondaryButton
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          {tab === "overview" && (
+          <>
           <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             {[
               { label: "Всего запросов", value: stats.total, accent: true },
@@ -535,6 +603,95 @@ export default function AdminPage() {
               </table>
             </div>
           </section>
+          </>
+          )}
+
+          {/* ─────────── Вкладка «Устройства»: полные профили device_visit ─────────── */}
+          {tab === "devices" && (
+          <>
+            {!deviceStats || deviceStats.total === 0 ? (
+              <section className={`rounded-2xl border p-8 text-center ${palette.card}`}>
+                <p className="text-lg font-semibold">Данных по устройствам пока нет</p>
+                <p className={`mt-2 text-sm ${palette.muted}`}>
+                  Полный профиль устройства отправляется на сервер при заходе на сайт после ввода никнейма.
+                </p>
+              </section>
+            ) : (
+              <>
+                <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                  {[
+                    { label: "Визитов устройств", value: deviceStats.total, accent: true },
+                    { label: "Уникальных IP", value: deviceStats.uniqueIps },
+                    { label: "Никнеймов", value: deviceStats.uniqueNicknames },
+                    { label: "Моделей", value: Object.keys(deviceStats.byModel).length },
+                    { label: "Часовых поясов", value: Object.keys(deviceStats.byTimezone).length },
+                  ].map((item) => (
+                    <div key={item.label} className={`rounded-2xl border p-4 ${palette.card}`}>
+                      <p className={`text-sm ${palette.muted}`}>{item.label}</p>
+                      <p className={`mt-2 text-3xl font-bold ${item.accent ? palette.accent : "font-semibold"}`}>{item.value}</p>
+                    </div>
+                  ))}
+                </section>
+
+                <section className="grid gap-6 lg:grid-cols-3">
+                  <StatBarChart title="Типы устройств" entries={Object.entries(deviceStats.byDeviceType)} palette={palette} />
+                  <StatBarChart title="Модели" entries={Object.entries(deviceStats.byModel)} palette={palette} />
+                  <StatBarChart title="ОС + версии" entries={Object.entries(deviceStats.byOs)} palette={palette} />
+                </section>
+
+                <section className="grid gap-6 lg:grid-cols-3">
+                  <StatBarChart title="Браузеры + версии" entries={Object.entries(deviceStats.byBrowser)} palette={palette} />
+                  <StatBarChart title="Экраны (W×H @DPR)" entries={Object.entries(deviceStats.byScreen)} palette={palette} />
+                  <StatBarChart title="Часовые пояса" entries={Object.entries(deviceStats.byTimezone)} palette={palette} />
+                </section>
+
+                <section className="grid gap-6 lg:grid-cols-3">
+                  <StatBarChart title="Языки интерфейса" entries={Object.entries(deviceStats.byLanguage)} palette={palette} />
+                  <StatBarChart title="Ввод: touch / мышь" entries={Object.entries(deviceStats.byTouch)} palette={palette} />
+                  <StatBarChart title="Игроки (по никнеймам)" entries={Object.entries(deviceStats.byNickname).filter(([n]) => n)} palette={palette} />
+                </section>
+
+                <section className={`rounded-2xl border p-4 ${palette.card}`}>
+                  <h2 className="mb-4 text-lg font-semibold">Последние визиты устройств</h2>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-left text-sm">
+                      <thead className={palette.muted}>
+                        <tr>
+                          <th className="pb-3 pr-4">Время</th>
+                          <th className="pb-3 pr-4">Никнейм</th>
+                          <th className="pb-3 pr-4">Тип</th>
+                          <th className="pb-3 pr-4">Модель</th>
+                          <th className="pb-3 pr-4">ОС</th>
+                          <th className="pb-3 pr-4">Браузер</th>
+                          <th className="pb-3 pr-4">Экран</th>
+                          <th className="pb-3 pr-4">Часовой пояс</th>
+                          <th className="pb-3 pr-4">CPU/RAM</th>
+                          <th className="pb-3 pr-4">IP</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {deviceStats.recent.map((v, index) => (
+                          <tr key={`${v.timestamp}-${index}`} className={`border-t ${palette.divider}`}>
+                            <td className="py-2 pr-4">{new Date(v.timestamp).toLocaleString()}</td>
+                            <td className="py-2 pr-4 font-bold">{v.nickname || "—"}</td>
+                            <td className="py-2 pr-4">{v.deviceType === "phone" ? "📱" : v.deviceType === "tablet" ? "📲" : v.deviceType === "desktop" ? "💻" : "?"}</td>
+                            <td className="py-2 pr-4">{v.model || "unknown"}</td>
+                            <td className="py-2 pr-4">{v.os}{v.osVersion ? ` ${v.osVersion}` : ""}</td>
+                            <td className="py-2 pr-4">{v.browser}{v.browserVersion ? ` ${v.browserVersion}` : ""}</td>
+                            <td className="py-2 pr-4">{v.screenW ? `${v.screenW}×${v.screenH} @${v.dpr}x` : "—"}</td>
+                            <td className="py-2 pr-4">{v.timezone || "—"}</td>
+                            <td className="py-2 pr-4">{v.cores ? `${v.cores} ядер` : "—"}{v.memoryGb ? ` / ${v.memoryGb} ГБ` : ""}</td>
+                            <td className="py-2 pr-4">{v.ip || "unknown"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </>
+            )}
+          </>
+          )}
         </div>
       </main>
     );
