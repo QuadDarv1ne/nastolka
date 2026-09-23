@@ -1755,7 +1755,7 @@ client.on('team-assigned', (payload) => {
     [lang],
   )
 
-  // ─── Мультиплеер: явное отключение по кнопке ───
+// ─── Мультиплеер: явное отключение по кнопке ───
   const handleMpDisconnect = useCallback(() => {
     const client = mpClientRef.current
     mpClientRef.current = null
@@ -1769,13 +1769,17 @@ client.on('team-assigned', (payload) => {
       setMpRoomMembers([])
     setMpStatus("disconnected")
     setMpError(null)
+    // Явный выход: просим сервер удалить устройство сразу (без грейс-периода)
+    // и забываем сессию, чтобы не переподключаться при перезагрузке.
+    removeSessionItem(MP_SESSION_STORAGE_KEY)
     if (client) {
       mpIntentionalDisconnectRef.current = true
+      try { client.leaveRoom() } catch {}
       try { client.disconnect() } catch {}
     }
   }, [])
 
-  // ─── Мультиплеер: закрываем сокет при размонтировании страницы ───
+// ─── Мультиплеер: закрываем сокет при размонтировании страницы ───
   useEffect(() => {
     return () => {
       const client = mpClientRef.current
@@ -1785,6 +1789,38 @@ client.on('team-assigned', (payload) => {
       }
     }
   }, [])
+
+  // ─── Мультиплеер: авто-переподключение к комнате при перезагрузке страницы ───
+  // Работает один раз после восстановления состояния. Сервер по deviceId узнаёт
+  // устройство и возвращает ему прежнюю команду (грейс-период 20 сек).
+  const mpAutoReconnectTriedRef = useRef(false)
+  useEffect(() => {
+    if (!hydrated || mpAutoReconnectTriedRef.current) return
+    mpAutoReconnectTriedRef.current = true
+    const session = readSessionJson<{ roomCode: string; role: "host" | "guest"; syncMode: "host" | "sync" }>(MP_SESSION_STORAGE_KEY)
+    if (!session?.roomCode) return
+    // Никнейм ещё не введён — не подключаемся, дождёмся его и вернёмся
+    if (!getNickname()) {
+      mpAutoReconnectTriedRef.current = false
+      return
+    }
+    setMpStatus("connecting")
+    void import("@/lib/multiplayer").then(async ({ joinRoom }) => {
+      try {
+        // Возврат в комнату всегда через join-room: сервер сам решит,
+        // вернуть прежнюю команду (устройство в грейс-периоде) или выдать новую.
+        const client = await joinRoom(session.roomCode)
+        handleMpConnect(client, session.role, client.code, client.syncMode, client.teamIndex)
+      } catch (e) {
+        // Комната могла закрыться, пока страница была перезагружена
+        removeSessionItem(MP_SESSION_STORAGE_KEY)
+        setMpStatus("disconnected")
+        if (typeof console !== "undefined") {
+          console.warn("[multiplayer] авто-переподключение не удалось:", e)
+        }
+      }
+    })
+  }, [hydrated, nickname, handleMpConnect])
 
   // ─── Мультиплеер: отправляем наше состояние при каждом изменении ───
   useEffect(() => {
