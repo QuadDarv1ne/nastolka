@@ -131,6 +131,13 @@ import {
 const STORAGE_PREFIX = "nastolka"
 const STATE_STORAGE_KEY = `${STORAGE_PREFIX}-state-v1`
 const SETTINGS_STORAGE_KEY = `${STORAGE_PREFIX}-settings-v1`
+/**
+ * Ключ sessionStorage с данными активной мультиплеер-сессии.
+ * Используется для авто-переподключения к комнате при перезагрузке страницы
+ * (F5, случайное обновление): сервер узнаёт устройство по deviceId и возвращает
+ * ему прежнюю команду.
+ */
+const MP_SESSION_STORAGE_KEY = `${STORAGE_PREFIX}-mp-session-v1`
 
 const initialState: State = {
   phase: "setup",
