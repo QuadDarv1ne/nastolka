@@ -368,6 +368,14 @@ export const STRINGS = {
     ru: "Устройство закрыло игру или потеряло связь. Синхронизация продолжится, как только оно вернётся.",
     en: "This device closed the game or lost connection. Sync resumes as soon as it is back.",
   },
+  mpReconnectedNotice: {
+    ru: "Вы вернулись в комнату — команда и счёт сохранены",
+    en: "You are back in the room — your team and score are preserved",
+  },
+  mpReconnecting: {
+    ru: "Переподключаемся к комнате…",
+    en: "Reconnecting to the room…",
+  },
   // Никнейм (обязателен при первом заходе)
   nickTitle: { ru: "Как вас зовут?", en: "What's your name?" },
   nickDescription: {

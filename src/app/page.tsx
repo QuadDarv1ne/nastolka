@@ -1516,14 +1516,14 @@ export default function Home() {
   const [mpRoom, setMpRoom] = useState<string | null>(null)
   const [mpMembers, setMpMembers] = useState(1)
   const [mpError, setMpError] = useState<string | null>(null)
+  // Краткое уведомление «вы вернулись в комнату» после авто-переподключения
+  const [mpReconnectedNotice, setMpReconnectedNotice] = useState(false)
   /** Участники комнаты с профилями устройств (для списка в диалоге) */
   const [mpRoomMembers, setMpRoomMembers] = useState<RoomMember[]>([])
   /** Номер моей команды в мультиплеере (назначается сервером; null — офлайн) */
   const [myTeamIndex, setMyTeamIndex] = useState<number | null>(null)
   /** Зеркало myTeamIndex для колбэков сокета (без перерегистрации обработчиков) */
   const myTeamIndexRef = useRef<number | null>(null)
-  /** Мой socketId — для сопоставления team-assigned/team-reassigned с собой */
-  const mpSocketIdRef = useRef<string | null>(null)
   /** true, когда disconnect() вызван ourselves (кнопка/замена connection), а не сервером */
   const mpIntentionalDisconnectRef = useRef(false)
   // ВАЖНО: ref для защиты от циклов синхронизации
@@ -1649,7 +1649,6 @@ export default function Home() {
 mpClientRef.current = client
       mpRoleRef.current = role
       mpSyncModeRef.current = syncMode
-      mpSocketIdRef.current = client.socketId ?? null
       myTeamIndexRef.current = teamIndex
       setMyTeamIndex(teamIndex)
       setMpStatus("connected")
@@ -1731,7 +1730,6 @@ client.on('team-assigned', (payload) => {
         mpClientRef.current = null
         mpRoleRef.current = null
         mpSyncModeRef.current = null
-        mpSocketIdRef.current = null
         changeTeam(null)
         setMpRoom(null)
         setMpMembers(1)
@@ -1761,7 +1759,6 @@ client.on('team-assigned', (payload) => {
     mpClientRef.current = null
     mpRoleRef.current = null
     mpSyncModeRef.current = null
-    mpSocketIdRef.current = null
     myTeamIndexRef.current = null
     setMyTeamIndex(null)
     setMpRoom(null)
@@ -1810,7 +1807,24 @@ client.on('team-assigned', (payload) => {
         // Возврат в комнату всегда через join-room: сервер сам решит,
         // вернуть прежнюю команду (устройство в грейс-периоде) или выдать новую.
         const client = await joinRoom(session.roomCode)
+        // Гонка: пока шло переподключение, пользователь мог сам создать комнату
+        // или войти в другую — тогда отбрасываем результат авто-reconnect.
+        if (mpClientRef.current) {
+          try { client.leaveRoom() } catch {}
+          try { client.disconnect() } catch {}
+          return
+        }
         handleMpConnect(client, session.role, client.code, client.syncMode, client.teamIndex)
+        // Сервер вернул нас в прежнюю комнату — покажем уведомление и уберём через 4 с
+        if (client.reconnected) {
+          setMpReconnectedNotice(true)
+          setTimeout(() => setMpReconnectedNotice(false), 4000)
+        }
+        // Комната, в которую мы вернулись, уже в процессе игры — запрашиваем
+        // актуальное состояние у её участников, чтобы не остаться на старом экране.
+        if (stateRef.current.phase !== "setup") {
+          setTimeout(() => client.requestState(), 500)
+        }
       } catch (e) {
         // Комната могла закрыться, пока страница была перезагружена
         removeSessionItem(MP_SESSION_STORAGE_KEY)
@@ -3001,6 +3015,21 @@ client.on('team-assigned', (payload) => {
             <Radio className="h-4 w-4" />
             {mpError || t(lang, "mpDisconnected")}
           </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* Мультиплеер: успешный возврат в комнату после перезагрузки страницы */}
+      <AnimatePresence>
+        {mpReconnectedNotice && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-bold text-white shadow-xl"
+          >
+            <Radio className="h-4 w-4" />
+            {t(lang, "mpReconnectedNotice")}
+          </motion.div>
         )}
       </AnimatePresence>
 

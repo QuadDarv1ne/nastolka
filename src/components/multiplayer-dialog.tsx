@@ -195,6 +195,14 @@ export function MultiplayerDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {/* Идёт авто-переподключение к комнате (после перезагрузки страницы) */}
+        {status === "connecting" && (
+          <div className="flex items-center justify-center gap-2 rounded-2xl bg-sky-500/10 p-4 text-sm font-semibold text-sky-700 dark:text-sky-400">
+            <RefreshCw className="h-4 w-4 animate-spin" />
+            {t(lang, "mpReconnecting")}
+          </div>
+        )}
+
         {status === "connected" && (
           <div className="rounded-2xl bg-emerald-500/10 p-4 text-center">
             <div className="mb-1 flex items-center justify-center gap-2 text-emerald-700 dark:text-emerald-400">
