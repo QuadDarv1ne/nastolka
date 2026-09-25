@@ -363,6 +363,11 @@ export const STRINGS = {
     en: "Visible to other room members — so everyone knows who is behind each device.",
   },
   mpMembersTitle: { ru: "Участники комнаты", en: "Room members" },
+  mpMemberOffline: { ru: "не в сети", en: "offline" },
+  mpOfflineHint: {
+    ru: "Устройство закрыло игру или потеряло связь. Синхронизация продолжится, как только оно вернётся.",
+    en: "This device closed the game or lost connection. Sync resumes as soon as it is back.",
+  },
   // Никнейм (обязателен при первом заходе)
   nickTitle: { ru: "Как вас зовут?", en: "What's your name?" },
   nickDescription: {

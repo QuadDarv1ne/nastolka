@@ -226,13 +226,23 @@ export function MultiplayerDialog({
                 {roomMembers.map((m) => (
                   <div
                     key={m.id}
-                    className="flex items-center gap-2.5 rounded-xl bg-card px-3 py-2"
+                    className={`flex items-center gap-2.5 rounded-xl bg-card px-3 py-2 ${m.connected === false ? "opacity-60" : ""}`}
                   >
                     <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-linear-to-br from-amber-400 to-orange-500 text-sm font-black text-white">
                       {m.teamIndex + 1}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-bold">{m.profile.name}</div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-sm font-bold">{m.profile.name}</span>
+                        {m.connected === false && (
+                          <span
+                            className="shrink-0 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400"
+                            title={t(lang, "mpOfflineHint")}
+                          >
+                            {t(lang, "mpMemberOffline")}
+                          </span>
+                        )}
+                      </div>
                       <div className="truncate text-[11px] text-muted-foreground">
                         {m.profile.model} · {m.profile.os} · {m.profile.browser}
                       </div>
