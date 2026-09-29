@@ -52,6 +52,6 @@ prompt
 server.log
 # Архивы с исходниками (артефакты сборки, не код)
 # *.zip
-*.tar.gz
+# *.tar.gz
 # Skills directory
 /skills/
