@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Nastolka icon">
+  <defs>
+    <linearGradient id="iconBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ED143B"/>
+      <stop offset="100%" stop-color="#C30F30"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square with red gradient -->
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#iconBg)" stroke="#FFFFFF" stroke-width="2"/>
+  <!-- Dice dots (5 pattern) -->
+  <circle cx="20" cy="20" r="4" fill="#FFFFFF"/>
+  <circle cx="44" cy="20" r="4" fill="#FFFFFF"/>
+  <circle cx="32" cy="32" r="4" fill="#FFFFFF"/>
+  <circle cx="20" cy="44" r="4" fill="#FFFFFF"/>
+  <circle cx="44" cy="44" r="4" fill="#FFFFFF"/>
+</svg>

@@ -105,7 +105,19 @@ import {
 } from "@/lib/sounds"
 import { recordGameComplete } from "@/lib/achievements"
 import { readItem, readJson, removeItem, writeJson, readSessionJson, writeSessionJson, removeSessionItem } from "@/lib/storage"
-import { getNickname, saveNickname, hasNickname, randomNickname, NICKNAME_MAX_LENGTH } from "@/lib/nickname"
+import {
+  getNickname,
+  saveNickname,
+  hasNickname,
+  randomNickname,
+  getDeviceKey,
+  validateNickname,
+  checkNicknameAvailability,
+  claimNickname,
+  suggestUniqueNickname,
+  NICKNAME_MAX_LENGTH,
+  type NicknameCheck,
+} from "@/lib/nickname"
 import { getDeviceInfo, type DeviceInfo } from "@/lib/device-info"
 import { useTheme } from "@/hooks/use-theme"
 import { useLang } from "@/hooks/use-lang"
@@ -1284,8 +1296,19 @@ function SetupScreen({
                 {enabledCategories.length === 0 ? t("allCategories") : t("selectAll")}
               </button>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {allCategories.map((c) => {
+            {/* Разбивка категорий на две группы: общие и ИТ */}
+            {(() => {
+              const itCategories: WordCategory[] = [
+                "it_architecture",
+                "it_processing",
+                "it_theory",
+                "it_programming",
+                "it_security",
+                "it_internet",
+                "it_ai",
+              ]
+              const generalCategories = allCategories.filter((c) => !itCategories.includes(c))
+              const renderChip = (c: WordCategory) => {
                 const active = enabledCategories.length === 0 || enabledCategories.includes(c)
                 return (
                   <button
@@ -1301,8 +1324,27 @@ function SetupScreen({
                     {categoryLabel(lang, c)}
                   </button>
                 )
-              })}
-            </div>
+              }
+              const groupHeader = (label: string) => (
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  <span className="inline-block h-px w-4 bg-muted-foreground/40" />
+                  {label}
+                  <span className="inline-block h-px flex-1 bg-muted-foreground/40" />
+                </div>
+              )
+              return (
+                <div className="space-y-3">
+                  <div className="rounded-2xl bg-muted/20 p-3">
+                    <div className="mb-2">{groupHeader(t("generalCategoriesGroup"))}</div>
+                    <div className="flex flex-wrap gap-1.5">{generalCategories.map(renderChip)}</div>
+                  </div>
+                  <div className="rounded-2xl border border-dashed border-foreground/20 bg-muted/30 p-3">
+                    <div className="mb-2">{groupHeader(t("itCategoriesGroup"))}</div>
+                    <div className="flex flex-wrap gap-1.5">{itCategories.map(renderChip)}</div>
+                  </div>
+                </div>
+              )
+            })()}
             <p className="mt-1.5 text-xs text-muted-foreground">
               {enabledCategories.length === 0
                 ? t("allCategoriesHint")
@@ -1502,6 +1544,9 @@ export default function Home() {
   // ─── Никнейм (обязателен при первом заходе) ───
   const [nickname, setNicknameState] = useState("")
   const [nicknameModal, setNicknameModal] = useState(false)
+  /** Результат проверки ника на сервере: пока он не готов, играть не пускаем */
+  const [nicknameCheck, setNicknameCheck] = useState<NicknameCheck | null>(null)
+  const [nicknameSaving, setNicknameSaving] = useState(false)
   const { lang, toggle: toggleLang } = useLang()
 
   // Полноэкранные плавающие «+N» при угаданном слове
@@ -1543,6 +1588,23 @@ export default function Home() {
   useEffect(() => {
     pickerRef.current = new WordPicker(state.customWords, state.enabledCategories, state.enabledDifficulties)
   }, [state.customWords, state.enabledCategories, state.enabledDifficulties])
+
+  // Свободен ли никнейм: проверяем с небольшой задержкой, пока игрок печатает
+  useEffect(() => {
+    const candidate = nicknameDraft.trim()
+    // Совпадает с уже сохранённым — это не новый ник, конфликтовать не с чем
+    if (!nicknameModal || candidate.length < MIN_NICKNAME || candidate === nickname) {
+      setNicknameCheck("free")
+      return
+    }
+    setNicknameCheck("checking")
+    const timer = setTimeout(() => {
+      void checkNickname(candidate).then((free) => {
+        if (nicknameDraftRef.current.trim() === candidate) setNicknameCheck(free ? "free" : "taken")
+      })
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [nicknameDraft, nicknameModal, nickname])
 
   // ─── Восстановление состояния из localStorage при загрузке ───
   useEffect(() => {

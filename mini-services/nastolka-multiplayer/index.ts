@@ -85,6 +85,18 @@ interface Member {
   disconnectTimer: ReturnType<typeof setTimeout> | null
 }
 
+/** Сообщение чата комнаты */
+interface ChatMessage {
+  id: string
+  /** Отправитель — deviceId (стабилен между переподключениями) */
+  deviceId: string
+  playerName: string
+  text: string
+  timestamp: number
+  /** emoji → список deviceId поставивших реакцию */
+  reactions?: Record<string, string[]>
+}
+
 /** Информация о комнате для реестра и списка лобби */
 interface RoomInfo {
   code: string
@@ -97,6 +109,8 @@ interface RoomInfo {
   /** Статус комнаты для списка лобби: лобби (setup) или в игре */
   status: 'lobby' | 'playing'
   createdAt: number
+  /** История чата комнаты (не переживает рестарт сервера) */
+  chatHistory: ChatMessage[]
 }
 
 // roomCode → RoomInfo
@@ -178,6 +192,11 @@ const generateRoomCode = () => {
   }
   return rooms.has(code) ? generateRoomCode() : code
 }
+
+/** Максимум сообщений в истории чата комнаты */
+const MAX_CHAT_HISTORY = 100
+/** Допустимые emoji-реакции (белый список — защита от мусора) */
+const ALLOWED_REACTIONS = new Set(['👍', '❤️', '😂', '🔥', '😮', '🎉'])
 
 /** Назначить следующий свободный teamIndex (по порядку входа) */
 const nextTeamIndex = (room: RoomInfo) => {
@@ -305,6 +324,7 @@ io.on('connection', (socket) => {
       teamInfo: [],
       status: 'lobby',
       createdAt: Date.now(),
+      chatHistory: [],
     }
     rooms.set(code, room)
     socketIndex.set(socket.id, { roomCode: code, deviceId })
@@ -427,6 +447,94 @@ io.on('connection', (socket) => {
     if (!ref) return
     detachSocket(socket.id, true)
     socket.emit('room-left', { code: ref.roomCode })
+  })
+
+  // ── Чат: отправить сообщение ──
+  socket.on('chat-message', (data: { text: string }) => {
+    const ref = socketIndex.get(socket.id)
+    if (!ref) return
+    const room = rooms.get(ref.roomCode)
+    const member = room?.members.get(ref.deviceId)
+    if (!room || !member) return
+    const text = (data.text || '').trim().slice(0, 500)
+    if (!text) return
+    const message: ChatMessage = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      deviceId: ref.deviceId,
+      playerName: member.profile.name || '???',
+      text,
+      timestamp: Date.now(),
+    }
+    room.chatHistory.push(message)
+    if (room.chatHistory.length > MAX_CHAT_HISTORY) {
+      room.chatHistory = room.chatHistory.slice(-MAX_CHAT_HISTORY)
+    }
+    // Broadcast всем в комнате (включая отправителя — для подтверждения)
+    io.to(ref.roomCode).emit('chat-message', message)
+  })
+
+  // ── Чат: запросить историю при входе ──
+  socket.on('chat-history-request', () => {
+    const ref = socketIndex.get(socket.id)
+    if (!ref) return
+    const room = rooms.get(ref.roomCode)
+    if (!room) return
+    socket.emit('chat-history', { messages: room.chatHistory })
+  })
+
+  // ── Чат: очистить историю (только хост комнаты — teamIndex 0) ──
+  socket.on('chat-clear', () => {
+    const ref = socketIndex.get(socket.id)
+    if (!ref) return
+    const room = rooms.get(ref.roomCode)
+    if (!room) return
+    const member = room.members.get(ref.deviceId)
+    if (!member || member.teamIndex !== 0) return
+    room.chatHistory = []
+    io.to(ref.roomCode).emit('chat-cleared', {})
+  })
+
+  // ── Чат: поставить/снять реакцию на сообщение ──
+  socket.on('chat-toggle-reaction', (data: { messageId: string; emoji: string }) => {
+    const ref = socketIndex.get(socket.id)
+    if (!ref) return
+    const room = rooms.get(ref.roomCode)
+    if (!room) return
+    const emoji = (data.emoji || '').trim()
+    if (!ALLOWED_REACTIONS.has(emoji)) return
+    const msg = room.chatHistory.find((m) => m.id === data.messageId)
+    if (!msg) return
+    if (!msg.reactions) msg.reactions = {}
+    if (!msg.reactions[emoji]) msg.reactions[emoji] = []
+    // Toggle: если уже ставил — снять, иначе — поставить
+    const idx = msg.reactions[emoji].indexOf(ref.deviceId)
+    if (idx >= 0) {
+      msg.reactions[emoji].splice(idx, 1)
+      if (msg.reactions[emoji].length === 0) delete msg.reactions[emoji]
+    } else {
+      msg.reactions[emoji].push(ref.deviceId)
+    }
+    io.to(ref.roomCode).emit('chat-message-updated', msg)
+  })
+
+  // ── Чат: индикатор «печатает…» ──
+  socket.on('chat-typing', () => {
+    const ref = socketIndex.get(socket.id)
+    if (!ref) return
+    const room = rooms.get(ref.roomCode)
+    const member = room?.members.get(ref.deviceId)
+    if (!room || !member) return
+    socket.to(ref.roomCode).emit('chat-typing', {
+      playerName: member.profile.name || '???',
+      deviceId: ref.deviceId,
+    })
+  })
+
+  // ── Чат: остановка печати ──
+  socket.on('chat-stop-typing', () => {
+    const ref = socketIndex.get(socket.id)
+    if (!ref) return
+    socket.to(ref.roomCode).emit('chat-stop-typing', { deviceId: ref.deviceId })
   })
 
   // Синхронизация состояния игры

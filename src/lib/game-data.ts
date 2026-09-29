@@ -99,6 +99,13 @@ export type WordCategory =
   | "movies"
   | "abstract"
   | "everyday"
+  | "it_architecture"
+  | "it_processing"
+  | "it_theory"
+  | "it_programming"
+  | "it_security"
+  | "it_internet"
+  | "it_ai"
 
 export type Difficulty = "easy" | "medium" | "hard"
 
@@ -427,6 +434,101 @@ export const WORDS: WordEntry[] = [
   { word: "Абонемент", wordEn: "Membership pass", category: "everyday", difficulty: "hard" },
   { word: "Подписка", wordEn: "Subscription", category: "everyday", difficulty: "medium" },
   { word: "Спонтанность", wordEn: "Spontaneity", category: "everyday", difficulty: "hard" },
+
+  // ═══ ИТ: Архитектура информационных систем ═══
+  { word: "Компьютер", wordEn: "Computer", category: "it_architecture", difficulty: "easy" },
+  { word: "Сервер", wordEn: "Server", category: "it_architecture", difficulty: "easy" },
+  { word: "Клиент", wordEn: "Client", category: "it_architecture", difficulty: "easy" },
+  { word: "База данных", wordEn: "Database", category: "it_architecture", difficulty: "easy" },
+  { word: "Сеть", wordEn: "Network", category: "it_architecture", difficulty: "easy" },
+  { word: "Интернет", wordEn: "Internet", category: "it_architecture", difficulty: "easy" },
+  { word: "Сайт", wordEn: "Website", category: "it_architecture", difficulty: "easy" },
+  { word: "Приложение", wordEn: "Application", category: "it_architecture", difficulty: "easy" },
+  { word: "Программа", wordEn: "Program", category: "it_architecture", difficulty: "easy" },
+  { word: "Файл", wordEn: "File", category: "it_architecture", difficulty: "easy" },
+  { word: "Пароль", wordEn: "Password", category: "it_architecture", difficulty: "easy" },
+  { word: "Пользователь", wordEn: "User", category: "it_architecture", difficulty: "easy" },
+  { word: "Админ", wordEn: "Admin", category: "it_architecture", difficulty: "medium" },
+  { word: "Облако (ИТ)", wordEn: "Cloud (IT)", category: "it_architecture", difficulty: "medium" },
+  { word: "Интерфейс", wordEn: "Interface", category: "it_architecture", difficulty: "medium" },
+  { word: "Кэш", wordEn: "Cache", category: "it_architecture", difficulty: "medium" },
+
+  // ═══ ИТ: Технологии обработки информации ═══
+  { word: "Сжатие", wordEn: "Compression", category: "it_processing", difficulty: "medium" },
+  { word: "Текст", wordEn: "Text", category: "it_processing", difficulty: "easy" },
+  { word: "Картинка", wordEn: "Image", category: "it_processing", difficulty: "easy" },
+  { word: "Звук (ИТ)", wordEn: "Sound (IT)", category: "it_processing", difficulty: "easy" },
+  { word: "Видео", wordEn: "Video", category: "it_processing", difficulty: "easy" },
+  { word: "Таблица", wordEn: "Table", category: "it_processing", difficulty: "easy" },
+  { word: "Папка", wordEn: "Folder", category: "it_processing", difficulty: "easy" },
+  { word: "Архив", wordEn: "Archive", category: "it_processing", difficulty: "easy" },
+  { word: "Поиск", wordEn: "Search", category: "it_processing", difficulty: "easy" },
+  { word: "Сортировка", wordEn: "Sorting", category: "it_processing", difficulty: "easy" },
+  { word: "Фильтр", wordEn: "Filter", category: "it_processing", difficulty: "easy" },
+  { word: "Копия", wordEn: "Copy", category: "it_processing", difficulty: "easy" },
+  { word: "Сохранение", wordEn: "Save", category: "it_processing", difficulty: "easy" },
+
+  // ═══ ИТ: Теория информационных процессов и систем ═══
+  { word: "Сообщение", wordEn: "Message", category: "it_theory", difficulty: "easy" },
+  { word: "Сигнал", wordEn: "Signal", category: "it_theory", difficulty: "medium" },
+  { word: "Шум", wordEn: "Noise", category: "it_theory", difficulty: "medium" },
+  { word: "Связь", wordEn: "Communication", category: "it_theory", difficulty: "easy" },
+  { word: "Телефон", wordEn: "Phone", category: "it_theory", difficulty: "easy" },
+  { word: "Радио", wordEn: "Radio", category: "it_theory", difficulty: "easy" },
+  { word: "Код", wordEn: "Code", category: "it_theory", difficulty: "easy" },
+  { word: "Шифр", wordEn: "Cipher", category: "it_theory", difficulty: "medium" },
+  { word: "Память (ИТ)", wordEn: "Memory (IT)", category: "it_theory", difficulty: "easy" },
+  { word: "Скорость", wordEn: "Speed", category: "it_theory", difficulty: "easy" },
+
+  // ═══ ИТ: Программирование и разработка ═══
+  { word: "Баг", wordEn: "Bug", category: "it_programming", difficulty: "easy" },
+  { word: "Вирус", wordEn: "Virus", category: "it_programming", difficulty: "easy" },
+  { word: "Браузер", wordEn: "Browser", category: "it_programming", difficulty: "easy" },
+  { word: "Иконка", wordEn: "Icon", category: "it_programming", difficulty: "easy" },
+  { word: "Курсор", wordEn: "Cursor", category: "it_programming", difficulty: "easy" },
+  { word: "Кнопка", wordEn: "Button", category: "it_programming", difficulty: "easy" },
+  { word: "Окно", wordEn: "Window", category: "it_programming", difficulty: "easy" },
+  { word: "Принтер", wordEn: "Printer", category: "it_programming", difficulty: "easy" },
+  { word: "Скрипт", wordEn: "Script", category: "it_programming", difficulty: "medium" },
+  { word: "Меню", wordEn: "Menu", category: "it_programming", difficulty: "medium" },
+  { word: "Клавиатура", wordEn: "Keyboard", category: "it_programming", difficulty: "medium" },
+  { word: "Колонка", wordEn: "Speaker", category: "it_programming", difficulty: "medium" },
+
+  // ═══ ИТ: Кибербезопасность ═══
+  { word: "Хакер", wordEn: "Hacker", category: "it_security", difficulty: "easy" },
+  { word: "Бэкап", wordEn: "Backup", category: "it_security", difficulty: "easy" },
+  { word: "Ключ (шифрования)", wordEn: "Encryption key", category: "it_security", difficulty: "easy" },
+  { word: "Антивирус", wordEn: "Antivirus", category: "it_security", difficulty: "easy" },
+  { word: "Щит", wordEn: "Shield", category: "it_security", difficulty: "easy" },
+  { word: "Брандмауэр", wordEn: "Firewall", category: "it_security", difficulty: "medium" },
+  { word: "Фишинг", wordEn: "Phishing", category: "it_security", difficulty: "medium" },
+  { word: "Шпион", wordEn: "Spy", category: "it_security", difficulty: "medium" },
+  { word: "Капча", wordEn: "Captcha", category: "it_security", difficulty: "medium" },
+  { word: "Троян", wordEn: "Trojan", category: "it_security", difficulty: "medium" },
+
+  // ═══ ИТ: Интернет и социальные сети ═══
+  { word: "Ссылка", wordEn: "Link", category: "it_internet", difficulty: "easy" },
+  { word: "Чат", wordEn: "Chat", category: "it_internet", difficulty: "easy" },
+  { word: "Почта", wordEn: "Mail", category: "it_internet", difficulty: "easy" },
+  { word: "Лайк", wordEn: "Like", category: "it_internet", difficulty: "easy" },
+  { word: "Хэштег", wordEn: "Hashtag", category: "it_internet", difficulty: "easy" },
+  { word: "Селфи", wordEn: "Selfie", category: "it_internet", difficulty: "easy" },
+  { word: "Блог", wordEn: "Blog", category: "it_internet", difficulty: "medium" },
+  { word: "Мем", wordEn: "Meme", category: "it_internet", difficulty: "medium" },
+  { word: "Стрим", wordEn: "Stream", category: "it_internet", difficulty: "medium" },
+  { word: "Подписчик", wordEn: "Subscriber", category: "it_internet", difficulty: "medium" },
+
+  // ═══ ИТ: Искусственный интеллект ═══
+  { word: "Робот", wordEn: "Robot", category: "it_ai", difficulty: "easy" },
+  { word: "Дрон", wordEn: "Drone", category: "it_ai", difficulty: "easy" },
+  { word: "Робот-пылесос", wordEn: "Robot vacuum", category: "it_ai", difficulty: "easy" },
+  { word: "Умные часы", wordEn: "Smartwatch", category: "it_ai", difficulty: "easy" },
+  { word: "Нейросеть", wordEn: "Neural network", category: "it_ai", difficulty: "medium" },
+  { word: "Чат-бот", wordEn: "Chatbot", category: "it_ai", difficulty: "medium" },
+  { word: "Автопилот", wordEn: "Autopilot", category: "it_ai", difficulty: "medium" },
+  { word: "Распознавание", wordEn: "Recognition", category: "it_ai", difficulty: "medium" },
+  { word: "Голосовой помощник", wordEn: "Voice assistant", category: "it_ai", difficulty: "medium" },
+  { word: "Виртуальная реальность", wordEn: "Virtual reality", category: "it_ai", difficulty: "hard" },
 ]
 
 export const CATEGORY_LABELS: Record<WordCategory, string> = {
@@ -440,6 +542,13 @@ export const CATEGORY_LABELS: Record<WordCategory, string> = {
   movies: "Кино",
   abstract: "Абстракции",
   everyday: "Бытовое",
+  it_architecture: "ИТ: Архитектура информационных систем",
+  it_processing: "ИТ: Технологии обработки информации",
+  it_theory: "ИТ: Теория информационных процессов и систем",
+  it_programming: "ИТ: Программирование и разработка",
+  it_security: "ИТ: Кибербезопасность",
+  it_internet: "ИТ: Интернет и социальные сети",
+  it_ai: "ИТ: Искусственный интеллект",
 }
 
 /**

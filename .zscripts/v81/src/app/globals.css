@@ -1,0 +1,385 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ─────────────────────────── Nastolka brand colors (RUTUBE brand book) ─────────────────────────── */
+/* Source: rutube.ru/brand */
+:root {
+  /* RUTUBE brand palette */
+  --nastolka-red: #ED143B;        /* primary RUTUBE red */
+  --nastolka-violet: #9A13ED;     /* Veronica purple */
+  --nastolka-blue: #123AED;       /* Palatinate blue */
+  --nastolka-cyan: #12CCED;       /* Vivid sky blue */
+  --nastolka-dark: #100943;       /* Russian violet (dark background) */
+  --nastolka-wood: #3E2723;      /* dark espresso table */
+  --nastolka-cream: #F5F5F5;     /* off-white tile text */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  /* Primary: RUTUBE red (#ED143B) */
+  --primary: oklch(0.59 0.24 27);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  /* Background: RUTUBE Russian violet #100943 */
+  --background: oklch(0.21 0.07 280);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.25 0.07 280);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.25 0.07 280);
+  --popover-foreground: oklch(0.985 0 0);
+  /* Primary: RUTUBE red (#ED143B) */
+  --primary: oklch(0.59 0.24 27);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.30 0.07 280);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.30 0.07 280);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.30 0.07 280);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.59 0.24 27);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.25 0.07 280);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.59 0.24 27);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.30 0.07 280);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.59 0.24 27);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Праздничный фон в стиле шоу "Настолка" */
+.nastolka-bg {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(244, 114, 182, 0.25), transparent 60%),
+    radial-gradient(1000px 500px at 110% 10%, rgba(34, 197, 94, 0.22), transparent 55%),
+    radial-gradient(900px 500px at 50% 120%, rgba(168, 85, 247, 0.25), transparent 55%),
+    linear-gradient(180deg, #fffaf2 0%, #fff5fb 100%);
+}
+
+.dark .nastolka-bg {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(244, 114, 182, 0.18), transparent 60%),
+    radial-gradient(1000px 500px at 110% 10%, rgba(34, 197, 94, 0.16), transparent 55%),
+    radial-gradient(900px 500px at 50% 120%, rgba(168, 85, 247, 0.18), transparent 55%),
+    linear-gradient(180deg, #0b0a14 0%, #11101c 100%);
+}
+
+/* Кастомный скроллбар для длинных списков */
+.nice-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.nice-scroll::-webkit-scrollbar-track { background: transparent; }
+.nice-scroll::-webkit-scrollbar-thumb {
+  background: rgba(120, 120, 120, 0.35);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.nice-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 120, 120, 0.55);
+  background-clip: padding-box;
+}
+
+/* Мерцающая неоновая обводка для активной команды */
+@keyframes pulse-ring {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.45), 0 0 30px 4px rgba(250, 204, 21, 0.25); }
+  50%      { box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.0),  0 0 50px 8px rgba(250, 204, 21, 0.35); }
+}
+.pulse-active { animation: pulse-ring 1.6s ease-in-out infinite; }
+
+/* Плавающие пузыри на фоне */
+@keyframes float-bubble {
+  0%   { transform: translateY(0)    scale(1); opacity: 0.0; }
+  10%  { opacity: 0.55; }
+  100% { transform: translateY(-140vh) scale(1.2); opacity: 0; }
+}
+.bubble {
+  position: absolute;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.7), rgba(255,255,255,0.15));
+  animation: float-bubble linear infinite;
+  pointer-events: none;
+}
+
+/* ─── Адаптивность ─── */
+
+/* Mobile (до 640px) — компактные иконки, меньше padding */
+@media (max-width: 639px) {
+  /* Шапка — уменьшаем отступы */
+  header { padding-top: 0.75rem !important; padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+  /* Кнопки в шапке — компактнее */
+  header button { padding: 0.5rem 0.5rem !important; }
+  header button svg { width: 1rem !important; height: 1rem !important; }
+  /* Карточки команд — меньше padding */
+  .team-card { padding: 0.875rem !important; border-radius: 1.25rem !important; }
+  .team-card .text-5xl { font-size: 2.5rem !important; }
+  /* Карточка слова — меньше padding */
+  .word-card { padding: 1rem !important; border-radius: 1.5rem !important; }
+  /* Заголовок слова — меньше на mobile */
+  .word-title { font-size: 1.75rem !important; line-height: 1.15 !important; }
+  /* Кубик — меньше */
+  .dice-container { transform: scale(0.65); }
+  /* Диалоги — full-screen на mobile */
+  [role="dialog"] > div:first-child {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+  /* Фишки — компактнее */
+  .chip-button { padding: 0.5rem 0.625rem !important; }
+  .chip-button span { font-size: 0.625rem !important; }
+  /* Прогресс-бар — тоньше */
+  .progress-bar { height: 0.5rem !important; }
+  /* Setup screen — уменьшаем gap */
+  .setup-card { padding: 1rem !important; }
+  /* Бейджи очков — меньше */
+  .points-badge { font-size: 0.625rem !important; padding: 0.25rem 0.625rem !important; }
+  /* Footer — компактнее */
+  footer { padding-bottom: 1.5rem !important; font-size: 0.625rem !important; }
+  /* Карточки команд в setup — меньше отступы */
+  .setup-card .bg-card { padding: 0.75rem !important; }
+  /* Кнопки выбора команд/цели/времени — компактнее */
+  .setup-card button { font-size: 0.75rem !important; padding: 0.5rem 0.75rem !important; }
+  /* Цветные кнопки команд — чуть меньше */
+  .setup-card .grid.h-10.w-10 { height: 2.25rem !important; width: 2.25rem !important; }
+  /* Число очков команды — меньше */
+  .text-5xl { font-size: 2.25rem !important; }
+}
+
+/* Tablet (640px–1023px) */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .dice-container { transform: scale(0.85); }
+  .word-title { font-size: 2.5rem !important; }
+}
+
+/* Desktop (1024px+) */
+@media (min-width: 1024px) {
+  .word-card { padding: 2rem !important; }
+  .dice-container { transform: scale(1); }
+}
+
+/* Безопасные зоны для iPhone (notch, home bar) */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  footer {
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* Предотвращаем zoom на mobile при фокусе input */
+@media (max-width: 639px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* Убираем tap highlight на mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Плавный скролл */
+html { scroll-behavior: smooth; }
+
+/* Убираем outline только для мыши, оставляем для клавиатуры */
+:focus:not(:focus-visible) { outline: none; }
+
+/* ─────────────────────────── Nastolka brand styling ─────────────────────────── */
+
+/* Logo container — block letters with 3D bevel look */
+.nastolka-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+/* 3D bevel effect on logo text */
+.nastolka-logo-text {
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.2),
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    0 4px 8px rgba(237, 20, 59, 0.15);
+}
+
+/* Center tile (red rhombus) */
+.nastolka-logo-tile {
+  display: inline-grid;
+  place-items: center;
+  width: 1.6em;
+  height: 1.6em;
+  background: linear-gradient(135deg, #ED143B 0%, #C30F30 100%);
+  border: 2px solid #FFFFFF;
+  border-radius: 0.32em;
+  transform: rotate(-12deg);
+  box-shadow:
+    0 2px 6px rgba(237, 20, 59, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: transform 0.3s ease;
+}
+
+.nastolka-logo-tile:hover {
+  transform: rotate(-12deg) scale(1.1);
+}
+
+/* Dice dots on the tile */
+.nastolka-logo-tile-dots {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 0.12em;
+  width: 70%;
+  height: 70%;
+}
+
+.nastolka-logo-tile-dots span {
+  background: #FFFFFF;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Pattern: 5 dots (1, 3, 5, 7, 9 positions filled) */
+.nastolka-logo-tile-dots span:nth-child(1),
+.nastolka-logo-tile-dots span:nth-child(3),
+.nastolka-logo-tile-dots span:nth-child(5),
+.nastolka-logo-tile-dots span:nth-child(7),
+.nastolka-logo-tile-dots span:nth-child(9) {
+  visibility: visible;
+}
+
+.nastolka-logo-tile-dots span:nth-child(2),
+.nastolka-logo-tile-dots span:nth-child(4),
+.nastolka-logo-tile-dots span:nth-child(6),
+.nastolka-logo-tile-dots span:nth-child(8) {
+  visibility: hidden;
+}
+
+/* Brand color dots */
+.nastolka-brand-dots {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-left: 0.5rem;
+}
+
+.nastolka-brand-dots span {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.nastolka-brand-dots span:nth-child(1) { background: #ED143B; }
+.nastolka-brand-dots span:nth-child(2) { background: #123AED; }
+.nastolka-brand-dots span:nth-child(3) { background: #9A13ED; }
+.nastolka-brand-dots span:nth-child(4) { background: #12CCED; }
+
+/* Gradient brand background for hero areas */
+.nastolka-gradient-bg {
+  background:
+    radial-gradient(circle at 20% 30%, rgba(237, 20, 59, 0.12) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(18, 58, 237, 0.12) 0%, transparent 50%),
+    radial-gradient(circle at 50% 100%, rgba(154, 19, 237, 0.08) 0%, transparent 60%);
+}
+
+.dark .nastolka-gradient-bg {
+  background:
+    radial-gradient(circle at 20% 30%, rgba(237, 20, 59, 0.18) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(18, 58, 237, 0.18) 0%, transparent 50%),
+    radial-gradient(circle at 50% 100%, rgba(154, 19, 237, 0.12) 0%, transparent 60%);
+}

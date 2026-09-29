@@ -110,6 +110,16 @@ export const STRINGS = {
   catMovies: { ru: "Кино", en: "Movies" },
   catAbstract: { ru: "Абстракции", en: "Abstract" },
   catEveryday: { ru: "Бытовое", en: "Everyday" },
+  catItArchitecture: { ru: "ИТ: Архитектура", en: "IT: Architecture" },
+  catItProcessing: { ru: "ИТ: Обработка информации", en: "IT: Data processing" },
+  catItTheory: { ru: "ИТ: Теория информации", en: "IT: Information theory" },
+  catItProgramming: { ru: "ИТ: Программирование", en: "IT: Programming" },
+  catItSecurity: { ru: "ИТ: Кибербезопасность", en: "IT: Security" },
+  catItInternet: { ru: "ИТ: Интернет и соцсети", en: "IT: Internet & social" },
+  catItAi: { ru: "ИТ: Искусственный интеллект", en: "IT: Artificial intelligence" },
+  // Группы категорий в setup-экране
+  generalCategoriesGroup: { ru: "Общие категории", en: "General categories" },
+  itCategoriesGroup: { ru: "ИТ-категории", en: "IT categories" },
 
   // Сложность — ключи совпадают с Difficulty в game-data.ts
   diffEasy: { ru: "Лёгкое", en: "Easy" },
@@ -387,6 +397,26 @@ export const STRINGS = {
   nickRandom: { ru: "Мне повезёт", en: "Feeling lucky" },
   nickInHeader: { ru: "Игрок", en: "Player" },
   nickChange: { ru: "Сменить никнейм", en: "Change nickname" },
+  // Проверка уникальности ника
+  nickChecking: { ru: "Проверяем ник…", en: "Checking nickname…" },
+  nickAvailable: { ru: "Ник свободен", en: "Nickname is free" },
+  nickTaken: { ru: "Такой ник уже занят другим игроком", en: "This nickname is already taken" },
+  nickTooShort: { ru: "Ник слишком короткий", en: "Nickname is too short" },
+  nickTooLong: { ru: "Ник слишком длинный", en: "Nickname is too long" },
+  nickInvalidChars: {
+    ru: "Можно использовать буквы, цифры, пробел и дефис",
+    en: "Letters, digits, spaces and hyphens only",
+  },
+  nickOffline: {
+    ru: "Не удалось проверить ник — играем без проверки",
+    en: "Couldn't check the nickname — continuing anyway",
+  },
+  nickUnavailable: {
+    ru: "Сервер не смог сохранить ник, попробуйте ещё раз",
+    en: "The server couldn't save the nickname, please try again",
+  },
+  nickSaving: { ru: "Занимаем ник…", en: "Claiming nickname…" },
+  nickTakeSuggestion: { ru: "Взять этот", en: "Use this one" },
   mpTeamShuffled: { ru: "Лобби заполнено — команды распределены случайно!", en: "Lobby is full — teams were shuffled randomly!" },
   mpWatchingRound: {
     ru: "Сейчас играет другая команда — вы можете только смотреть. Ваша фишка «Повтор раунда» доступна под таймером.",
@@ -565,6 +595,13 @@ const CATEGORY_I18N_KEYS: Record<string, StringKey> = {
   movies: "catMovies",
   abstract: "catAbstract",
   everyday: "catEveryday",
+  it_architecture: "catItArchitecture",
+  it_processing: "catItProcessing",
+  it_theory: "catItTheory",
+  it_programming: "catItProgramming",
+  it_security: "catItSecurity",
+  it_internet: "catItInternet",
+  it_ai: "catItAi",
 }
 
 /** Маппинг Difficulty → ключ i18n */

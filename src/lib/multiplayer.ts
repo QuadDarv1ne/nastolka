@@ -142,6 +142,16 @@ export function buildMemberProfile(): MemberProfile {
   }
 }
 
+/** Короткое имя устройства: «iPhone», «iPad», «ПК» или модель Android */
+export function deviceName(model: string): string {
+  const m = (model || "").trim()
+  if (/iphone/i.test(m)) return "iPhone"
+  if (/ipad/i.test(m)) return "iPad"
+  if (/ipod/i.test(m)) return "iPod"
+  if (/^(windows|macos|linux|chromeos|unknown)$/i.test(m)) return "ПК"
+  return m || "устройство"
+}
+
 export interface MultiplayerClient {
   disconnect: () => void
   sendState: (state: State) => void
@@ -153,6 +163,18 @@ export interface MultiplayerClient {
   listLobbies: () => void
   /** Явно покинуть комнату (сервер удаляет устройство сразу, без грейс-периода) */
   leaveRoom: () => void
+  /** Отправить сообщение в чат комнаты */
+  sendChat: (text: string) => void
+  /** Запросить историю чата (при входе в комнату / открытии панели) */
+  requestChatHistory: () => void
+  /** Очистить историю чата (только хост комнаты) */
+  clearChat: () => void
+  /** Поставить/снять emoji-реакцию на сообщение */
+  toggleChatReaction: (messageId: string, emoji: string) => void
+  /** Индикатор «печатает…» (отправляется с дебаунсом) */
+  sendChatTyping: () => void
+  /** Я перестал печатать */
+  sendChatStopTyping: () => void
   /** Мой socketId */
   socketId: string
   /** Стабильный ID моего устройства (по нему сервер узнаёт нас при переподключении) */
@@ -205,10 +227,34 @@ export interface MultiplayerEvents {
   'lobbies-list': { lobbies: LobbyInfo[] }
   /** Список лобби изменился (создана/закрыта комната, вошёл/вышел игрок) */
   'lobbies-changed': { lobbies: LobbyInfo[] }
+  /** Чат: новое сообщение (рассылается всем в комнате, включая отправителя) */
+  'chat-message': ChatMessage
+  /** Чат: ответ на requestChatHistory */
+  'chat-history': { messages: ChatMessage[] }
+  /** Чат: историю очистил хост комнаты */
+  'chat-cleared': Record<string, never>
+  /** Чат: в сообщении изменились реакции */
+  'chat-message-updated': ChatMessage
+  /** Чат: другой участник печатает (имя + его deviceId) */
+  'chat-typing': { playerName: string; deviceId: string }
+  /** Чат: другой участник перестал печатать */
+  'chat-stop-typing': { deviceId: string }
   /** Связь с сервером потеряна (сервер упал, Wi-Fi отвалился, ушли из комнаты) */
   'server-disconnect': { reason: string }
   /** Ошибка повторного подключения после обрыва */
   'reconnect-error': { message: string }
+}
+
+/** Сообщение чата комнаты (история живёт на сервере до закрытия комнаты) */
+export interface ChatMessage {
+  id: string
+  /** Отправитель — стабильный deviceId устройства */
+  deviceId: string
+  playerName: string
+  text: string
+  timestamp: number
+  /** emoji → список deviceId, поставивших реакцию */
+  reactions?: Record<string, string[]>
 }
 
 /** Участник комнаты: профиль + назначенная команда */
@@ -492,6 +538,12 @@ function makeWrapper(socket: import('socket.io-client').Socket): MultiplayerClie
     sendMeta: (meta) => socket.emit('meta-update', { meta }),
     listLobbies: () => socket.emit('list-lobbies', {}),
     leaveRoom: () => socket.emit('leave-room', {}),
+    sendChat: (text) => socket.emit('chat-message', { text }),
+    requestChatHistory: () => socket.emit('chat-history-request', {}),
+    clearChat: () => socket.emit('chat-clear', {}),
+    toggleChatReaction: (messageId, emoji) => socket.emit('chat-toggle-reaction', { messageId, emoji }),
+    sendChatTyping: () => socket.emit('chat-typing', {}),
+    sendChatStopTyping: () => socket.emit('chat-stop-typing', {}),
     socketId: socket.id ?? '',
     deviceId: getDeviceId(),
     on: (event, cb) => {

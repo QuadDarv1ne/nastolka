@@ -1,0 +1,56 @@
+# Зависимости
+node_modules
+.npm
+.pnpm-store
+.yarn
+
+# Сборка
+.next
+out
+dist
+build
+
+# Git
+.git
+.gitignore
+.gitattributes
+.github
+
+# Окружение и локальные файлы
+.env
+.env.local
+.env.development
+.env.production
+.env*.local
+*.log
+dev.log
+server.log
+
+# Amvera
+amvera.yml
+amvera.yaml
+
+# IDE и системные файлы
+.vscode
+.idea
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Тесты и скрипты
+tests
+.zscripts
+examples
+download
+scripts
+
+# Документация
+README.md
+agent-ctx
+worklog.md
+
+# Кэш
+.cache
+.eslintcache
+*.tsbuildinfo

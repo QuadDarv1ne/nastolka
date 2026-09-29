@@ -248,6 +248,14 @@ export function playMilestone() {
   playTone(ctx, { freq: 1175, duration: 0.18, type: "triangle", volume: 0.2, startAt: 0.06 })
 }
 
+/** Звук уведомления о новом сообщении чата (мягкий «дзынь») */
+export function playChatNotification() {
+  const ctx = getCtx()
+  if (!ctx) return
+  playTone(ctx, { freq: 659, duration: 0.08, type: "sine", volume: 0.14 })
+  playTone(ctx, { freq: 880, duration: 0.12, type: "sine", volume: 0.14, startAt: 0.06 })
+}
+
 /* ─────────── Тактильная отдача (Vibration API) ─────────── */
 
 let hapticsEnabled = true
